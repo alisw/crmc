@@ -1,0 +1,68 @@
+
+ -----------------------
+ code particle     mass
+ -----------------------
+   1  gam          0.0000
+   2  e+           0.0005
+   3  e-           0.0005
+   4  mu+          0.1057
+   5  mu-          0.1057
+   6  pi0          0.1350
+   7  pi+          0.1396
+   8  pi-          0.1396
+   9  k+           0.4937
+  10  k-           0.4937
+  11  k0l          0.4977
+  12  k0s          0.4977
+  13  p            0.9383
+  14  n            0.9396
+  15  nue          0.0000
+  16  nueb         0.0000
+  17  num          0.0000
+  18  numb         0.0000
+  19  empty
+  20  empty
+  21  k0           0.4977
+  22  k0b          0.4977
+  23  eta          0.5488
+  24  etap         0.9576
+  25  rho+         0.7714
+  26  rho-         0.7714
+  27  rho0         0.7717
+  28  k*+          0.8921
+  29  k*-          0.8921
+  30  k*0          0.8965
+  31  k*0b         0.8965
+  32  omeg         0.7826
+  33  phi          1.1020
+  34  SIG+         1.1894
+  35  SIG0         1.1925
+  36  SIG-         1.1973
+  37  XI0          1.3149
+  38  XI-          1.3213
+  39  LAM          1.1156
+  40  DELT++       1.2300
+  41  DELT+        1.2310
+  42  DELT0        1.2320
+  43  DELT-        1.2330
+  44  SIG*+        1.3828
+  45  SIG*0        1.3837
+  46  SIG*-        1.3872
+  47  XI*0         1.5318
+  48  XI*-         1.5350
+  49  OME*-        1.6724
+
+Antibaryons have negative codes (antineutrons = -14  for example)
+Other particles are unknown  in this version.
+
+A special  numbering  scheme  has  been  introduced  for nuclei. 
+A Helium nucleus  (A=4)  is  indicated  with the code L=1004
+an Iron nucleus   (A=56) has L=1056.
+
+When  a particle decays it is NOT deleted from the 
+event record, but it is kept there (in case one want to understand
+what happened). In this case   10000 is added to
+the code (or -10000 is subtracted if the code is negative)
+of the particle that has decayed.  The daughter particles are 
+added  starting at the end of the event record.
+
