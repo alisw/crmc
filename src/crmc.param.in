@@ -33,8 +33,7 @@ nodecay -19    !uncomment not to decay antialpha
 
 MinDecayLength  1.    !minimum c.Tau to define stable particles (cm)
 
-fdpmjetpho dat   @CRMCROOT@/tabs/phojet_fitpar.dat
-fdpmjet dat   @CRMCROOT@/tabs/dpmjet.dat
+fdpmjet path  @CRMCROOT@/tabs/
 fqgsjet dat   @CRMCROOT@/tabs/qgsjet.dat
 fqgsjet ncs   @CRMCROOT@/tabs/qgsjet.ncs
 fqgsjetII03 dat @CRMCROOT@/tabs/qgsdat-II-03.lzma

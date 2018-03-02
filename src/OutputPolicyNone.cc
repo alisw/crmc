@@ -50,6 +50,9 @@ void
 OutputPolicyNone::PrintCrossSections(const CRMCoptions& cfg)
 {
     cout << "\n          >> Cross Sections <<\n\n"
+
+         << "  sqrt(s/GeV**2)=" << cfg.fSqrts << "\n\n"
+
          << "  Total Cross Section (mb):    " << gCRMC_data.sigtot << "\n"
          << "  Elastic Cross Section (mb):  " << gCRMC_data.sigela << "\n"
          << "  Inel. Cross Section (mb) :   " << gCRMC_data.sigine << "\n" ;

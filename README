@@ -1,4 +1,4 @@
-CRMC v1.5.3 Last modifications 2014/07/17
+CRMC v1.6.0 Last modifications 2016/03/29
 
 **********************************************************
                      The Program "crmc"
@@ -18,7 +18,8 @@ C++ interface : Colin Baus (colin.baus@kit.edu)
                 Ralf Ulrich (ralf.ulrich@kit.edu)
 Fortran interface : Tanguy Pierog (tanguy.pierog@kit.edu)
 
-"crmc" is based on the first epos-root interface by X. Garrido (2009)
+"crmc" is loosely based on the first epos-root interface
+by X. Garrido (2009)
 
 **********************************************************
                          References
@@ -26,8 +27,8 @@ Fortran interface : Tanguy Pierog (tanguy.pierog@kit.edu)
 
 -- CRMC :
 
-Reference : C. Baus, T. Pierog and R. Ulrich. To be published (2015)
-           (please ask colin.baus@kit.edu when needed)
+Reference : C. Baus, T. Pierog and R. Ulrich. To be published (2016)
+           (please ask colin.baus@alumni.kit.edu when needed)
 
 
 -- Hadronic interaction models :
@@ -35,10 +36,16 @@ Reference : C. Baus, T. Pierog and R. Ulrich. To be published (2015)
 * Post LHC :
 
 EPOS LHC (-m0) : T. Pierog et al.
-                 arXiv:1306.0121 [hep-ph]
+                    Phys.Rev. C92 (2015) 034906
 
 QGSJETII-04 (-m7) : S.Ostapchenko,
                     Phys.Rev. D83 (2011) 014018
+
+SIBYLL2.3 (-m6) : R. Engel, T.K. Gaisser, F. Riehn and T. Stanev,
+                  Proc. 34th Int. Cosmic Ray Conf., The Hague (Netherlands), 1 (2015) 1313
+                 and
+                  E.-J. Ahn, R. Engel, T.K. Gaisser, P. Lipari, and T. Stanev,
+                  Phys.Rev. D80 (2009) 094003
 
 * Pre LHC :
 
@@ -56,18 +63,12 @@ QGSJET01 (-m2) : N.N. Kalmykov, S. Ostapchenko, and A.I. Pavlov,
 QGSJETII-03 (-m11) : S. Ostapchenko,
                      Nucl.Phys.Proc.Suppl. 151 (2006) 143
 
-SIBYLL2.1 (-m6) : R. Engel, T.K. Gaisser, P. Lipari, and T. Stanev,
-                  Proc. 26th Int. Cosmic Ray Conf., Salt Lake City (USA), 1 (1999) 415
-                 and
-                  E.-J. Ahn, R. Engel, T.K. Gaisser, P. Lipari, and T. Stanev,
-                  Phys.Rev. D80 (2009) 094003
-
 **********************************************************
                        Installation
 **********************************************************
 
 To install please get the latest version from the authors and
-install the following pre-requisites: BOOST, HEPMC, CMAKE.
+install the following pre-requisites: BOOST, HEPMC, CMAKE (*).
 The next optional step is to modify the CMakeLists.txt file to
 your needs of which models should be compiled. After you have
 done so, you can compile the program:
@@ -76,14 +77,23 @@ done so, you can compile the program:
 mkdir -p installed
 cd installed
 cmake DIRECTORY_WHERE_YOUR_SOURCE_IS
-make --jobs=8
-make install
+make install #you can compile faster with option --jobs=8
+
 
 To test the installation you can use
 make test ARGS=-V
 or
 bin/crmc -T <your options>
 if you want to test some specific set of options.
+
+
+
+
+
+
+(*) On CERN lxplus HEPMC is preinstalled. Try setting
+SET(HEPMC_PREFIX /afs/cern.ch/sw/lcg/external/HepMC/2.06.08/x86_64-slc6-gcc48-opt/)
+in your CMakeLists.txt
 
 **********************************************************
                        Troubleshoot
@@ -97,6 +107,8 @@ Sometime it can happen that the CMake cache still contains
 old options or set paths that should be updated. In this
 case the issues can be resolved by doing that.
 
+On MacOS, please switch to STATIC libraries in CMakeLists.txt.
+
 **********************************************************
                             Run
 **********************************************************
@@ -108,22 +120,25 @@ Run the program by executing
 to get the following help:
 
 Options of CRMC:
-  -h [ --help ]                     description of options
-  -v [ --version ]                  show version and exits
-  -o [ --output ] arg               output mode: hepmc (default), hepmc.gz, root, lhe, lhe.gz
-  -s [ --seed ] arg                 random seed (default: random)
-  -n [ --number ] arg               number of collisions
-  -m [ --model ] arg                model [0=EPOS_LHC (default), 1=EPOS_1.99, 2=QGSJET01,
-                                    6=Sibyll_2.1, 7=QGSJETII-04, 11=QGSJETII-03]
-  -p [ --projectile-momentum ] arg  momentum/(GeV/c) (usually  >0)
-  -P [ --target-momentum ] arg      momentum/(GeV/c) (usually =<0)
-  -i [ --projectile-id ] arg        PDG or Z*10000+A*10 (default=proton)
-  -I [ --target-id ] arg            PDG or Z*10000+A*10 (default=proton)
-  -c [ --config ] arg               config file
-  -f [ --out ] arg                  output file name (auto if none provided)
-  -t [ --produceTables ] [=arg(=1)] create tables if none are found
-  -T [ --Test ] [=arg(=1)]          Test mode
-
+  -h [ --help ]                      description of options
+  -v [ --version ]                   show version and exits
+  -o [ --output ] arg                output mode: hepmc (default), hepmcgz,
+                                     root, lhe, lhegz
+  -s [ --seed ] arg                  random seed between 0 and 1e9 (default:
+                                     random)
+  -n [ --number ] arg                number of collisions
+  -m [ --model ] arg                 model [0=EPOS_LHC, 1=EPOS_1.99,
+                                     6=Sibyll_2.3, 7=QGSJETII-04]
+  -p [ --projectile-momentum ] arg   momentum/(GeV/c)
+  -P [ --target-momentum ] arg       momentum/(GeV/c)
+  -S [ --sqrts ] arg                 sqrt(s/GeV**2)
+  -i [ --projectile-id ] arg         PDG or Z*10000+A*10
+  -I [ --target-id ] arg             PDG or Z*10000+A*10
+  -c [ --config ] arg                config file
+  -f [ --out ] arg                   output file name (auto if none provided)
+  -t [ --produce-tables ] [=arg(=1)] create tables if none are found
+  -T [ --test ] [=arg(=1)]           test mode
+  -x [ --cross-section ] [=arg(=1)]  calculate and print cross section only
 
 for projectile and target Id the following shortcuts are allowed :
  1    = PDG(2212)       = proton
@@ -131,6 +146,8 @@ for projectile and target Id the following shortcuts are allowed :
  12   = PDG(1000060120) = Carbon
  120  = PDG(211)        = pion+ (not for -I)
 -120  = PDG(-211)       = pion- (not for -I)
+ 130  = PDG(321)        = kaon+ (not for -I)
+-130  = PDG(-321)       = kaon- (not for -I)
  208  = PDG(1000822080) = Lead
 using these shortcuts with automatic output file name generation will create more human readable names.
 
@@ -138,15 +155,15 @@ The environment variable $CRMC_OUT can be set to define the path the path of the
 otherwise $PWD is used as default path.
 
 **Example to generate 100 7 TeV pp collisions with EPOS LHC:
-bin/crmc -o hepmc -p3500 -P-3500 -n100 -m0
+bin/crmc -o hepmc -S7000 -n100 -m0
 
 **Example to generate 100 1.38 ATeV PbPb collisions with EPOS 1.99:
 bin/crmc -o hepmc -p1380 -P-1380 -n100 -i208 -I208 -m1
 
-**Example to generate 100 4.4 ATeV pPb collisions with QGSJetII-04:
-bin/crmc -o hepmc -p3500 -P-1380 -n100 -m7 -i2112 -I822080
+**Example to generate 100 5.02 ATeV pPb collisions with QGSJetII-04:
+bin/crmc -o hepmc -p4000 -P-1577 -n100 -m7 -i2212 -I822080
 
-**Example to test Sibyll2.1
+**Example to test Sibyll2.3
 bin/crmc -T -m6
 
 **********************************************************
@@ -186,7 +203,7 @@ cross-section will be always correct but it takes several minutes to compute it 
            Note on Simulating Heavy Ion (HI) Events
 ******I****************************************************
 
-QGSJET01 and SIBYLL2.1 are limited to hA collisions with A<64 and h being a pion, a kaon or a nucleon.
+QGSJET01 and SIBYLL2.3 are limited to hA collisions with A<64 (A<19) and h being a pion, a kaon or a nucleon.
 Only EPOS (1.99 and LHC) and QGSJETII (03 and 04) models can run (h)AB collisions with A and B up to 208.
 QGSJETII was never designed for HI collisions, so results should be interpreted with care (no final
 state interactions).
@@ -205,7 +222,7 @@ The number of loops is hard-coded (20000 check models.F) and does not depend on 
 
 The HepMC (2.06) IO library has a default limitation of the number of produced particles of 10000.
 Thus, events with more than that number of secondaries are either truncated or skipped. For heavy ion
-collisions this easily can become a problem in crmc. Please consider changing thie limiation to a
+collisions this easily can become a problem in crmc. Please consider changing thie limitation to a
 higher value. We suggest 200000, which works for all models at LHC energies so far. We are happy for
 feedback on this issue if problems are encountered.
 The CRMC code automatically checks for the

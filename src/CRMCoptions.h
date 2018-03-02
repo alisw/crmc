@@ -54,6 +54,7 @@ class CRMCoptions {
   int fTypout;
   double fProjectileMomentum;
   double fTargetMomentum;
+  double fSqrts;
   std::string fParamFileName;
   std::string fOutputFileName;
 

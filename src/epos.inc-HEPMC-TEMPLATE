@@ -483,6 +483,8 @@ c------------------------------------------------------------------------
       common/mod9incs/fluincs
       real            urqincs
       common/mod10incs/urqincs
+      real            dpmincs
+      common/mod12incs/dpmincs
       real           antot,ansh,ansf,pp4max,pp4ini,andropl,anstrg0
      *,anshf,ansff,antotf
      *,anstrg1,anreso0,anreso1,anghadr,antotre

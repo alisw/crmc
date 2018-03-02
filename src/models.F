@@ -324,6 +324,12 @@
 
       double precision GTOT,GPROD,GABS,GDD,GQEL,GCOH
       double precision e0
+#ifdef __SIBYLL__
+      double precision engy_d,ssig,slope,rho,sigt_d,sige_d,sigqel_d,
+     &        sigsd_d,sigqsd_d
+      double precision SSIGNUC,alnuc
+      COMMON /CLENNN/ SSIGNUC(60), ALNUC(60)
+#endif
       dimension dumdif(3)
       if(model.eq.2)then
 #ifndef __QGSJET01__
@@ -358,20 +364,40 @@
 #else
          call hjcrossc(sigi,sigt)
 #endif
-      elseif(model.eq.6.and.maproj.eq.1)then
+      elseif(model.eq.6)then
 #ifndef __SIBYLL__
          stop'please compile with requested model'
          print *, dumdif(3)!get rid of unused warning
 #else
+        if(maproj.eq.1)then
          K=1
          if(iclpro.eq.1)then
             K=2
          elseif(iclpro.eq.3)then
             K=3
          endif
-         CALL SIB_SIGMA_HP(K,engy,SSIG,dum0,dum1,dumdif,SLOPE,RHO)
-         CALL GLAUBER(matarg,SSIG,SLOPE,RHO,sigt,sige,sigqel)
-         sigi=sigt-sigqel
+         engy_d = dble(engy)
+         CALL SIB_SIGMA_HP(K,engy_d,SSIG,dum0,dum1,dumdif,SLOPE,RHO)
+         CALL GLAUBER2
+     &        (matarg,SSIG,SLOPE,RHO,sigt_d,sige_d,sigqel_d,
+     &        sigsd_d,sigqsd_d)
+         sigt=sngl(sigt_d)
+         sige=sngl(sige_d)
+         sigqel=sngl(sigqel_d)
+         sigi=sngl(sigt_d-sigqel_d)
+        elseif(idtarg.eq.0)then
+         E0=dble(elab)*1.d-3          !e0 in TeV
+         CALL  SIGNUC_INI(maproj,E0) !  fills SSIGNUC and ALNUC
+         sigi=sngl(SSIGNUC(maproj))
+         sigt=0.
+         sige=0.
+         sigqel=0.
+        else
+         sigi=0.
+         sigt=0.
+         sige=0.
+         sigqel=0.
+        endif
          sigc=sigi
 #endif
       elseif(model.eq.7.or.model.eq.11)then
@@ -404,8 +430,7 @@
          stop'please compile with requested model'
 #else
          NITER=20000
-         call GetDPMJETSigmaAA(niter,sigt,sigi,sige)
-         sigc=0
+         call GetDPMJETSigmaAA(niter,sigt,sigi,sigc,sige)
 #endif
       else
          sigt=0.
@@ -436,7 +461,11 @@
       end
 
       subroutine m6SIGMA(icl,engy,stot,sela,sine,sdifr,slela,Rho)
-      dimension sdifr0(3)
+#ifdef __SIBYLL__
+      double precision engy_d,stot_d,sela_d,sine_d,slela_d,rho_d
+      double precision sdifr0_d(3)
+#endif
+
 #ifndef __SIBYLL__
       stop'please compile with requested model'
       print *, icl,engy,stot,sela,sine,sdifr,slela,Rho,sdifr0 !get rid of unused warning
@@ -448,8 +477,15 @@
       else
          L=3
       endif
-      call SIB_SIGMA_HP(L,engy,stot,sela,sine,sdifr0,slela,Rho)
-      sdifr=sdifr0(1)+sdifr0(2)+sdifr0(3)
+      engy_d = dble(engy)
+      CALL SIB_SIGMA_HP
+     &     (L,engy_d,stot_d,sela_d,sine_d,sdifr0_d,slela_d,Rho_d)
+      stot   =  sngl(  stot_d  )
+      sela   =  sngl(  sela_d  )
+      sine   =  sngl(  sine_d  )
+      slela  =  sngl(  slela_d )
+      Rho    =  sngl(  Rho_d   )
+      sdifr=sngl(sdifr0_d(1)+sdifr0_d(2)+sdifr0_d(3))
 #endif
       end
 
@@ -534,7 +570,7 @@ C     cross sections
 
 #ifndef __DPMJET__
          stop'please compile with requested model'
-         print *, stot,sine,sela,stotaa,sineaa,selaaa !get rid of unused warning
+         print *, stot,sine,sela !get rid of unused warning
 #else
       call GetDPMJETSigma(stot,sine,sela)
 #endif
@@ -563,7 +599,7 @@ c-----------------------------------------------------------------------
       include 'epos.inc'
 
       COMMON/PYDAT1/MSTU(200),PARU(200),MSTJ(200),PARJ(200)
-      COMMON/PYDAT3/MDCY(500,3),MDME(4000,2),BRAT(4000),KFDP(4000,5)
+      COMMON/PYDAT3/MDCY(500,3),MDME(8000,2),BRAT(8000),KFDP(8000,5)
 
       character*100 NameDecay
 c     Integer function to translate normal id from pythia to compact one.
@@ -783,5 +819,31 @@ C...Format for error printout.
 
       RETURN
       END
+
+c--------------------------------------------------------------------
+      subroutine PHO_PHIST(idum,dum)
+c--------------------------------------------------------------------
+c random number generator
+c--------------------------------------------------------------------
+      double precision dum,dum2
+
+      dum2=dum
+      idum2=idum
+
+      return
+      end
+ 
+c--------------------------------------------------------------------
+      subroutine PHO_LHIST(idum,dum)
+c--------------------------------------------------------------------
+c random number generator
+c--------------------------------------------------------------------
+      double precision dum,dum2
+
+      dum2=dum
+      idum2=idum
+
+      return
+      end
 
 #endif

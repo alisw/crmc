@@ -5,11 +5,30 @@
 #include <iomanip>
 #include <fstream>
 #include <cstdlib>
+#include <math.h>
 
 #include <boost/program_options.hpp>
 namespace po = boost::program_options;
 
 using namespace std;
+
+double mass(int id)
+///return mass in GeV
+{
+  double mass;
+  switch(id)
+    {
+    case 120: // pi+
+      mass = 0.13957018;
+      break;
+    case 130: // k+
+      mass = 0.493677;
+      break;
+    default: // proton
+      mass = 0.938272046;
+    }
+  return mass;
+}
 
 CRMCoptions::CRMCoptions(int argc, char** argv)
   : fError(false),
@@ -81,7 +100,7 @@ CRMCoptions::ParseOptions(int argc, char** argv)
 	     << ", 5=Hijing_1.38"
 #endif
 #ifdef __SIBYLL__
-	     << ", 6=Sibyll_2.1"
+	     << ", 6=Sibyll_2.3c"
 #endif
 #ifdef __QGSJETII04__
 	     << ", 7=QGSJETII-04"
@@ -93,7 +112,7 @@ CRMCoptions::ParseOptions(int argc, char** argv)
 	     << ", 11=QGSJETII-03"
 #endif
 #ifdef __DPMJET__
-	     << ", 12=DPMJet 3.0-6"
+	     << ", 12=DPMJet-III_2017.1"
 #endif
 	     << "]";
 
@@ -107,6 +126,7 @@ CRMCoptions::ParseOptions(int argc, char** argv)
     ("model,m", po::value<int>(), model_desc.str().c_str())
     ("projectile-momentum,p", po::value<double>(), "momentum/(GeV/c)")
     ("target-momentum,P", po::value<double>(), "momentum/(GeV/c)")
+    ("sqrts,S", po::value<double>(), "sqrt(s/GeV**2)")
     ("projectile-id,i", po::value<int>(), "PDG or Z*10000+A*10")
     ("target-id,I", po::value<int>(), "PDG or Z*10000+A*10")
     ("config,c", po::value<string>(), "config file")
@@ -152,6 +172,13 @@ CRMCoptions::ParseOptions(int argc, char** argv)
       exit(1);
     }
   }
+
+  // check if either sqrt(s) or the momenta option was used
+  if(opt.count("sqrts") && (opt.count("target-momentum") || opt.count("projectile-momentum")))
+    {
+      cerr << "You can either specify sqrt(s) or the beam momenta" << endl;
+      exit(1);
+    }
 
   if (fOutputMode == eLHE || fOutputMode == eLHEGZ)
     fTypout = 1;
@@ -236,6 +263,22 @@ CRMCoptions::ParseOptions(int argc, char** argv)
     }
   }
 
+  // treat sqrts setting
+  if (opt.count("sqrts"))
+    {
+      const double sqrts = opt["sqrts"].as<double>();
+      const double e = sqrts / 2.;
+      fTargetMomentum = -sqrt((e+mass(fTargetId))*(e-mass(fTargetId)));
+      fProjectileMomentum = sqrt((e+mass(fProjectileId))*(e-mass(fProjectileId)));
+      fSqrts = sqrts;
+    }
+  else //set fSqrts
+    {
+      const double eTarget = sqrt(fTargetMomentum*fTargetMomentum + pow(mass(fTargetId),2));
+      const double eProjectile = sqrt(fProjectileMomentum*fProjectileMomentum + pow(mass(fProjectileId),2));
+      fSqrts = sqrt(((eTarget+eProjectile)+(fTargetMomentum+fProjectileMomentum))*((eTarget+eProjectile)-(fTargetMomentum+fProjectileMomentum)));
+    }
+
   DumpConfig();
 
 }
@@ -247,12 +290,18 @@ const
   if (pid < 10000) {
 
     switch (pid) {
-    case 120  : return "pi"; break;
-    case -120 : return "antipi"; break;
-    case 1    : return "p";  break;
-    case -1   : return "antip";  break;
-    case 12   : return "C";   break;
-    case 208  : return "Pb";  break;
+    case 120  : return "pi"; break; // no pdg
+    case -120 : return "antipi"; break; // no pdg
+    case 211  : return "pi"; break;
+    case -211 : return "antipi"; break;
+    case 1    : return "p";  break; // pdg d-quark
+    case -1   : return "antip";  break; // pdg anti d-quark
+    case 12   : return "C";   break; // pdg: nu-e
+    case 208  : return "Pb";  break; // no pdg
+    case 2212 : return "p"; break;
+    case -2212: return "antip"; break;
+    case 2112: return "n"; break; // not so useful
+    case -2112: return "antin"; break; // not so useful
     default:
       {
 	ostringstream ss;
@@ -266,11 +315,11 @@ const
   const int A = (pid%10000) / 10;
 
   switch(Z) {
-  case 1: return "p"; break;
-  case 2: return "He"; break;
-  case 6: return "C"; break;
-  case 7: return "N"; break;
-  case 8: return "O"; break;
+  case 1:  return "p";  break;
+  case 2:  return "He"; break;
+  case 6:  return "C";  break;
+  case 7:  return "N";  break;
+  case 8:  return "O";  break;
   case 26: return "Fe"; break;
   case 82: return "Pb"; break;
   }
@@ -301,6 +350,11 @@ CRMCoptions::DumpConfig() const
     const int Z =  fProjectileId/10000;
     const int A = (fProjectileId%10000) / 10;
     cout << " (A=" << A << ", Z=" << Z << ")";
+  } else {
+    const string pname = ParticleName(fProjectileId);
+    if (pname.find("pdg")!=0) {
+      cout << " (" << pname << ")";
+    }
   }
   cout << "\n"
        << "  projectile momentum:        " << fProjectileMomentum << "\n"
@@ -309,6 +363,11 @@ CRMCoptions::DumpConfig() const
     const int Z =  fTargetId/10000;
     const int A = (fTargetId%10000) / 10;
     cout << " (A=" << A << ", Z=" << Z <<")";
+  } else {
+    const string pname = ParticleName(fTargetId);
+    if (pname.find("pdg")!=0) {
+      cout << " (" << pname << ")";
+    }
   }
   cout << "\n"
        << "  target momentum:            " << fTargetMomentum << "\n\n";
@@ -320,17 +379,17 @@ CRMCoptions::DumpConfig() const
   cout << "  HE model:                   " << fHEModel;
 
   switch(fHEModel) {
-  case 0: cout << " (EPOS-LHC) \n"; break;
-  case 1: cout << " (EPOS 1.99) \n"; break;
-  case 2: cout << " (QGSJET01) \n"; break;
-  case 3: cout << " (Gheisha)\n "; break;
-  case 4: cout << " (Pythia)\n "; break;
-  case 5: cout << " (Hijing)\n "; break;
-  case 6: cout << " (Sibyll 2.1)\n "; break;
-  case 7: cout << " (QGSJETII-04) \n"; break;
-  case 8: cout << " (Phojet) \n"; break;
+  case 0:  cout << " (EPOS-LHC) \n"; break;
+  case 1:  cout << " (EPOS 1.99) \n"; break;
+  case 2:  cout << " (QGSJET01) \n"; break;
+  case 3:  cout << " (Gheisha)\n "; break;
+  case 4:  cout << " (Pythia)\n "; break;
+  case 5:  cout << " (Hijing)\n "; break;
+  case 6:  cout << " (Sibyll 2.3c)\n "; break;
+  case 7:  cout << " (QGSJETII-04) \n"; break;
+  case 8:  cout << " (Phojet) \n"; break;
   case 11: cout << " (QGSJETII-03) \n"; break;
-  case 12: cout << " (DPMJet 3.0-6) \n"; break;
+  case 12: cout << " (DPMJet-III 2017.1) \n"; break;
   default:
     cerr << " (unknown model) \n";
     exit(1);
@@ -402,17 +461,17 @@ CRMCoptions::GetOutputFileName() const
   ostringstream crmcFileName;
   crmcFileName << crmcOutDir << "/" << "crmc_";
   switch (fHEModel) {
-  case 0: crmcFileName << "eposlhc";   break;
-  case 1: crmcFileName << "epos199";      break;
-  case 2: crmcFileName << "qgsjet";    break;
-  case 3: crmcFileName << "gheisha";   break;
-  case 4: crmcFileName << "pythia";    break;
-  case 5: crmcFileName << "hijing";    break;
-  case 6: crmcFileName << "sibyll";    break;
-  case 7: crmcFileName << "qgsjetII04";  break;
-  case 8: crmcFileName << "phojet";    break;
-  case 11:crmcFileName << "qgsjetII03";  break;
-  case 12: crmcFileName << "dpmjet";    break;
+  case 0:  crmcFileName << "eposlhc";      break;
+  case 1:  crmcFileName << "epos199";      break;
+  case 2:  crmcFileName << "qgsjet";       break;
+  case 3:  crmcFileName << "gheisha";      break;
+  case 4:  crmcFileName << "pythia";       break;
+  case 5:  crmcFileName << "hijing";       break;
+  case 6:  crmcFileName << "sibyll";       break;
+  case 7:  crmcFileName << "qgsjetII04";   break;
+  case 8:  crmcFileName << "phojet";       break;
+  case 11: crmcFileName << "qgsjetII03";   break;
+  case 12: crmcFileName << "dpmjet";       break;
   default:
     cerr << " crmcOut: error - unknown model " << fHEModel << endl;
     cerr << "          exit ..." << endl;

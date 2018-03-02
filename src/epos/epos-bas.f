@@ -11,9 +11,9 @@ c-----------------------------------------------------------------------
       common/record/maxrec(2),irecty(30,2)
       common/cfacmss/facmss /cr3pomi/r3pomi,r4pomi/cifset/ifset
       common /ems12/iodiba,bidiba  ! defaut iodiba=0. if iodiba=1, study H-Dibaryon
-      character*500 fndat,fnncs,fnIIdat,fnIIncs,fnII03dat,fnII03ncs,
-     &fndpmjet,fndpmjetpho                  !qgs-II????????
-      common/dpmjetfname/  fndpmjet,fndpmjetpho
+      character*500 fndat,fnncs,fnIIdat,fnIIncs,fnII03dat,fnII03ncs
+c     &,fndpmjet,fndpmjetpho,fndpmpath                  !qgs-II????????
+c      common/dpmjetfname/  fndpmjet,fndpmjetpho,fndpmpath
       common/qgsfname/  fndat, fnncs, ifdat, ifncs
       common/qgsIIfname/fnIIdat, fnIIncs, ifIIdat, ifIIncs     !qgs-II????????
       common/qgsII03fname/fnII03dat, fnII03ncs, ifII03dat, ifII03ncs     !qgs-II????????
@@ -2886,7 +2886,7 @@ c boost in lab frame
         if(model.eq.3)call alistf('GHEISHA&')
         if(model.eq.4)call alistf('PYTHIA&')
         if(model.eq.5)call alistf('HIJING&')
-        if(model.eq.6)call alistf('SIBYLL 2.1&')
+        if(model.eq.6)call alistf('SIBYLL 2.3c&')
         if(model.eq.7.or.model.eq.11)call alistf('QGSJET II&')
         if(model.eq.8)call alistf('PHOJET&')
         if(model.eq.9)call alistf('FLUKA&')
@@ -3067,12 +3067,12 @@ c update file names
         if(model.eq.3)iversn=100 !'GHEISHA '
         if(model.eq.4)iversn=611 !'PYTHIA  '
         if(model.eq.5)iversn=138 !'HIJING   '
-        if(model.eq.6)iversn=210 !'SIBYLL  '
+        if(model.eq.6)iversn=233 !'SIBYLL  '
         if(model.eq.7)iversn=400 !'QGSJETII-04'
         if(model.eq.8)iversn=112 !'PHOJET  '
         if(model.eq.9)iversn=201125 !'FLUKA   '
         if(model.eq.11)iversn=300 !'QGSJETII-03'
-        if(model.eq.12)iversn=306 !'DPMJET  '
+        if(model.eq.12)iversn=3171 !'DPMJET-III 2017.1  '
         if(model.ne.1)iverso=iversn
         call IniModel(model)
       endif
@@ -3494,9 +3494,12 @@ c---------------------------------------------------------------------
       common/record/maxrec(2),irecty(30,2)
       common/cfacmss/facmss /cr3pomi/r3pomi,r4pomi
       common /ems12/iodiba,bidiba  ! defaut iodiba=0. if iodiba=1, study H-Dibaryon
-      character*500 fndat,fnncs,fnIIdat,fnIIncs,fnII03dat,fnII03ncs,
-     &fndpmjet,fndpmjetpho
-      common/dpmjetfname/  fndpmjet,fndpmjetpho
+      character*500 fndat,fnncs,fnIIdat,fnIIncs,fnII03dat,fnII03ncs
+c     &,fndpmjet,fndpmjetpho,fndpmpath
+c      common/dpmjetfname/  fndpmjet,fndpmjetpho,fndpmpath
+cdh  datadir for path to the data sets to be read in by dpmjet/phojet
+      COMMON /DATADIR/ DATADIR
+      CHARACTER*132    DATADIR
       common/qgsfname/  fndat, fnncs, ifdat, ifncs
       common/qgsIIfname/fnIIdat, fnIIncs, ifIIdat, ifIIncs     !qgs-II
       common/qgsII03fname/fnII03dat, fnII03ncs, ifII03dat, ifII03ncs !qgs-II03
@@ -3759,24 +3762,9 @@ c      if(line(i:j).eq.'xEmsPx')call xEmsPxNo(2,0.,0.,0,0)
       call utworn(line,j,ne)
       if(ne.eq.0.and.iprmpt.gt.0)write(ifmt,'(a)')'file-name?'
       call utword(line,i,j,0)
-      if(linex(ix:jx).eq.'dat')fndpmjet(1:j-i+1)=line(i:j)
-      if(linex(ix:jx).eq.'dat')nfndat=j-i+1             !length of dpmjet.dat path
-      if(nfndat.gt.1)ifdat=1
-
-          elseif(line(i:j).eq.'fdpmjetpho')then              !DPMJET phojet fitpar file
-
-      call utworn(line,j,ne)
-      if(ne.eq.0.and.iprmpt.gt.0)write(ifmt,'(a)')'file-type file-name?'
-      call utword(line,i,j,0)
-      linex=line
-      ix=i
-      jx=j
-      call utworn(line,j,ne)
-      if(ne.eq.0.and.iprmpt.gt.0)write(ifmt,'(a)')'file-name?'
-      call utword(line,i,j,0)
-      if(linex(ix:jx).eq.'dat')fndpmjetpho(1:j-i+1)=line(i:j)
-      if(linex(ix:jx).eq.'dat')nfndat=j-i+1             !length of dpmjet.dat path
-      if(nfndat.gt.1)ifdat=1
+c      if(linex(ix:jx).eq.'dat')fndpmjet(1:j-i+2)=line(i:j)//' '
+c      if(linex(ix:jx).eq.'pho')fndpmjetpho(1:j-i+2)=line(i:j)//' '
+      if(linex(ix:jx).eq.'path')DATADIR(1:j-i+2)=line(i:j)//' '
 
            elseif(line(i:j).eq.'fqgsjet')then              !QGSJet
 
@@ -5646,10 +5634,10 @@ c       nptlx=nptl+1
         nbdky=nptl
         call bjinta(ier)
         if(ier.eq.1)goto 3
-        if(iappl.eq.1.and.irescl.eq.1)then
-          call utresc(iret)
-          if(iret.gt.0)goto 3
-        endif
+c        if(iappl.eq.1.and.irescl.eq.1)then
+c          call utresc(iret)
+c          if(iret.gt.0)goto 3
+c        endif
 
 c       calculates numbers of spectators:
 
@@ -6071,6 +6059,7 @@ c----------------------------------------------------------------------
 c      parameter(itext=40)
       character  text*(*)
       dimension pp(5),erest(5),errp(4)
+c      call alist('check&',1,nptl)
       n1=1
       if(iframe.eq.21.and.(abs(iappl).eq.1.or.iappl.eq.3))
      *n1=2*(maproj+matarg+1)
@@ -6596,7 +6585,12 @@ c  GDD - double diffractive cross section
         sigineaa=urqincs
 
       elseif(model.eq.12)then                  !for DPMJet
-         call dpmjetSIGMA(sigtot,sigine,sigela)
+         call dpmjetSIGMA(stot,sine,sela)
+         sigtot=stot
+         sigine=sine
+         sigcut=sigine
+         sigela=sela 
+         sigineaa=sigine
       endif
 
              if(isigma.ge.1)then  !===============!

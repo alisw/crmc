@@ -2116,13 +2116,13 @@ C     IF (IDP.EQ.27) IDP = 6
       ENDIF
 
 * initialization of Glauber-formalism (moved to xAEVT, sr 26.3.96)
-C     IF (NCOMPO.LE.0) THEN
-C        CALL DT_SHMAKI(IP,IPZ,IT,ITZ,IDP,PPN,IGLAU)
-C     ELSE
-C        DO 493 I=1,NCOMPO
-C           CALL DT_SHMAKI(IP,IPZ,IEMUMA(I),IEMUCH(I),IDP,PPN,0)
-C 493    CONTINUE
-C     ENDIF
+      IF (NCOMPO.LE.0) THEN
+        CALL DT_SHMAKI(IP,IPZ,IT,ITZ,IDP,PPN,IGLAU)
+      ELSE
+        DO 493 I=1,NCOMPO
+          CALL DT_SHMAKI(IP,IPZ,IEMUMA(I),IEMUCH(I),IDP,PPN,0)
+ 493    CONTINUE
+      ENDIF
 
 * pre-tabulation of elastic cross-sections
       CALL DT_SIGTBL(JDUM,JDUM,DUM,DUM,-1)

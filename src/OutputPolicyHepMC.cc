@@ -137,7 +137,11 @@ OutputPolicyHepMC::FillEvent(const CRMCoptions& cfg, const int nEvent)
 #ifdef HEPMC_HAS_CROSS_SECTION
   // set cross section information for this event
   HepMC::GenCrossSection theCrossSection;
+  if(cfg.fProjectileId>1 || cfg.fTargetId>1){
   theCrossSection.set_cross_section(double(gCRMC_data.sigineaa)*1e9); //required in pB
+  }else{
+  theCrossSection.set_cross_section(double(gCRMC_data.sigine)*1e9); //required in pB
+  }
   fEvtHepMC->set_cross_section(theCrossSection);
 #endif
 

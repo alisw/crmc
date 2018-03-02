@@ -60,7 +60,7 @@ c     Calculations of energy of the center-of-mass in the detector frame
 
       e1=dsqrt(dble(m1)**2+pproj**2)
       e2=dsqrt(dble(m2)**2+ptarg**2)
-      decms=dsqrt((e1+e2)**2-(pproj+ptarg)**2)
+      decms=dsqrt(((e1+e2)+(pproj+ptarg))*((e1+e2)-(pproj+ptarg)))
 c     Later a rapidity boost back into the detector system will be performed
       doBoost = .true.
 c     ycm2det defines this rapidity
@@ -72,6 +72,7 @@ c     ycm2det defines this rapidity
          ycm2det=0.5d0*dlog(((e1+e2)+(pproj+ptarg))/
      +        ((e1+e2)-(pproj+ptarg)))
       endif
+
       if (pproj .le. 0d0) then
          ycm2det=-ycm2det
       endif
@@ -138,10 +139,12 @@ c     Output quantities
       integer outstat(*)
 
       double precision boostvec1,boostvec2,boostvec3,boostvec4,boostvec5
-      double precision mass
+      double precision mass,ppp,xcount
       double precision ycm2det
       logical doBoost
       common/boostvars/ycm2det,doBoost
+      data xcount / 0d0 /
+      save
 
       integer i!,k
 
@@ -153,6 +156,7 @@ c     Fix final particles and some event parameters
 
 c     Fill HEP common
       call hepmcstore(iout)  !use hepmcstore for all models to be sure to get same vertex structure
+c      call xInvMass(ievent)          !invariant mass distribution
 
 c     optional Statistic information (only with debug level ish=1)
       call astati
@@ -174,32 +178,36 @@ c     define vec to boost from cm. to cms frame
       boostvec5=1d0
 c      write(*,*)nevhep,nhep,boostvec3,boostvec4,ycm2det
       do i=1,nhep
+c Put particle is on-shell (needed because of single/double precision pb)
+          ppp  = sqrt( phep(1,i)**2 + phep(2,i)**2 + phep(3,i)**2)
+          mass = (phep(4,i)+ppp)*(phep(4,i)-ppp)
+          if(abs(mass-phep(5,i)**2)/max(1d2,ppp**2).gt.1d-4)   !not to count precision problems
+     +    xcount=xcount+1d0
+          mass=phep(5,i)
+          phep(4,i)=sqrt(phep(3,i)**2+phep(2,i)**2+phep(1,i)**2
+     +                      +mass**2)     !force particles to be on-shell
 c     boost output to cms frame
-         if(doBoost.eqv..true..and.ycm2det.ne.0d0) then
-            if(model.eq.6) then ! sibyll needs calculated mass because itlob5 does not work with off-shell particles
-               mass = dsqrt(phep(4,i)**2
-     +              - phep(1,i)**2 - phep(2,i)**2 - phep(3,i)**2)
-            else
-               mass = phep(5,i)
-            endif
+          if(doBoost.eqv..true..and.ycm2det.ne.0d0) then
             call utlob2(-1,boostvec1,boostvec2,boostvec3
      +           ,boostvec4,boostvec5
      +           ,vhep(1,i),vhep(2,i),vhep(3,i),vhep(4,i),-99)
             call utlob5dbl(-ycm2det
      +           ,phep(1,i), phep(2,i), phep(3,i), phep(4,i), mass)
-            outpart(i)=idhep(i)
-            outpx(i)=phep(1,i)
-            outpy(i)=phep(2,i)
-            outpz(i)=phep(3,i)
-            oute(i)=phep(4,i)
-            outm(i)=phep(5,i)
-            outstat(i)=isthep(i)
-         endif
+          endif
+          outpart(i)=idhep(i)
+          outpx(i)=phep(1,i)
+          outpy(i)=phep(2,i)
+          outpz(i)=phep(3,i)
+          oute(i)=phep(4,i)
+          outm(i)=phep(5,i)
+          outstat(i)=isthep(i)
 c      write(*,'(4x,i6,1x,4(e12.6,1x))')idhep(i),(vhep(k,i),k=1,4)
 c         write(*,'(i5,3x,i2,2x,2i5,2x,2i5)')i,isthep(i)
 c     *        ,jmohep(1,i),jmohep(2,i),jdahep(1,i),jdahep(2,i)
 c         write(*,'(i10,1x,4(e12.6,1x))')idhep(i),(phep(k,i),k=1,4)
       enddo
+      if(ievent.eq.nevent.and.xcount.gt.0d0)print *,
+     +        'Warning : negative mass for ',xcount,' particles !'
 
 c     Write lhe file
       if(iout.eq.1)call lhesave(ievent)
@@ -226,9 +234,9 @@ c-----------------------------------------------------------------------
                                 !which is calculated in crmc_f.
 
       model=max(1,iModel)              ! epos = 0,1 / qgsjet01 = 2 / gheisha = 3
-                                ! / pythia = 4 / hijing = 5 / sibyll 2.1
+                                ! / pythia = 4 / hijing = 5 / sibyll 2.3c
                                 ! = 6 / qgsjetII.04 = 7 / phojet = 8
-                                ! qgsjetII.03 = 11 / dpmjet = 12
+                                ! qgsjetII.03 = 11 / dpmjetIII = 12
       if(iModel.eq.0)then
         call LHCparameters      !LHC tune for EPOS
         isigma=1                !use analytic cross section for nuclear xs
@@ -1038,3 +1046,71 @@ C  COMPLETE INITIALIZATION BY SKIPPING (NTOT2*MODCNS+NTOT) RANDOMNUMBERS
 
       RETURN
       END
+
+cc----------------------------------------------------------------------
+c      subroutine xInvMass(iii)
+cc----------------------------------------------------------------------
+cc Subroutine to plot invariant mass distribution from photons
+cc----------------------------------------------------------------------
+c      include 'epos.inc'
+c      parameter (nmbin=3000)
+c      double precision sumE,sumP,xmass,xmmin,xmmax,dmass,dn(nmbin)
+c      save
+c      if(iii.eq.1)then
+c        xmmin=0.133d0             !minimum mass
+c        xmmax=0.136d0             !maximum mass
+c        dmass=(xmmax-xmmin)/(nmbin-1)
+c        do i=1,nmbin
+c          dn(i)=0.d0
+c        enddo
+c        xncount=0.
+c      endif
+cc loop over all pairs of photons to reconstruct invariant mass
+c      do k=1,nptl
+c        if(istptl(k).eq.0.and.idhep(k).eq.22)then
+c          do l=k+1,nptl
+c            if(istptl(l).eq.0.and.idhep(l).eq.22)then
+c              sumE=phep(4,k)+phep(4,l)
+c              sumP=0.d0
+c              do j=1,3
+c                sumP=sumP+(phep(j,k)+phep(j,l))**2
+c              enddo
+c              sumP=sqrt(sumP)
+c              xmass=(sumE+sumP)*(sumE-sumP)
+c              xmass=sign(sqrt(abs(xmass)),xmass)
+c              i=int((xmass-xmmin)/dmass)+1
+cc           if(iorptl(k).eq.iorptl(l).and.abs(xmass-0.135).gt.0.01)then
+cc                print *,k,l,i,xmass,xncount
+cc     . ,iorptl(k),idhep(iorptl(k))
+cc                print *,phep(1,k),phep(2,k),phep(3,k),phep(4,k)
+cc                print *,phep(1,l),phep(2,l),phep(3,l),phep(4,l)
+cc                print *,sumE,sumP,(sumE+sumP)*(sumE-sumP)
+cc           endif
+c              if(i.ge.1.and.i.le.nmbin)then
+c                dn(i)=dn(i)+1.
+c                xncount=xncount+1.
+c              endif
+cc              endif
+c            endif
+c          enddo
+c        endif
+c      enddo
+c      if(iii.eq.nevent.and.xncount.gt.0.)then
+cc plot distribution
+c      write(ifhi,'(a)')       'newpage zone 1 1 1'
+c      write(ifhi,'(a)')       '!##################################'
+c      write(ifhi,'(a,i3)')    '!   photon invariant mass     '
+c      write(ifhi,'(a)')       '!##################################'
+c      write(ifhi,'(a)') ' openhisto htyp lbu xmod lin ymod log '
+c      write(ifhi,'(a)') 'text 0.10 0.00 ""xaxis Mass (GeV) "" '
+c      write(ifhi,'(a)') 'text 0.10 0.00 ""yabis 1/N dN/dM "" '
+c      write(ifhi,'(a,2e11.3)') 'xrange ',xmmin,xmmax
+c      write(ifhi,'(a,2e11.3)') 'yrange ',1.,xncount
+c      write(ifhi,'(a)') ' array 3'
+c      do i=1,nmbin
+c        xmass=xmmin+(i-1)*dmass
+c      write(ifhi,'(3e16.8)')xmass,dn(i),sqrt(dn(i))
+c      enddo
+c      write(ifhi,'(a)') ' endarray closehisto plot 0'
+c      endif
+c      end

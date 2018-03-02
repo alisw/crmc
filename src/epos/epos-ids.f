@@ -1328,7 +1328,7 @@ c  initializes /crema/
 c  masses are limit between stable state (so the average between 2 mass states)
 c  width=hbar(6.582e-25 GeV.s)/tau for 151, 251, 351, 451 arbitrary
 c  (no data found) !!!!!!!!!!!
-c  used only in epos-ids.f 
+c  used only in epos-ids.f
 c-----------------------------------------------------------------------
 
       parameter (mxindx=1000,mxre=100,mxma=11,mxmx=6)
@@ -1475,7 +1475,7 @@ c     *233.,1.427,1.634,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,
       data ((rewii(k,m),m=1,mxma),k=21,25)/
      * 11.,7.849e-09,0.149e+00,0.057e+00,0.000e+00,0.000e+00,
      *     0.000e+00,0.000e+00,0.000e+00,0.000e+00,0.000e+00,
-     * 22.,0.130e-05,8.490e-03,0.034e+00,0.004e+00,0.000e+00,
+     * 22.,0.130e-05,8.490e-03,0.070e+00,0.360e+00,0.185e+00,
      *     0.000e+00,0.000e+00,0.000e+00,0.000e+00,0.000e+00,
      * 12.,2.524e-17,0.153e+00,0.057e+00,0.000e+00,0.000e+00,
      *     0.000e+00,0.000e+00,0.000e+00,0.000e+00,0.000e+00,
@@ -1576,14 +1576,19 @@ c      endif
 c      return
 c      end
 c
+
 c-----------------------------------------------------------------------
-      subroutine idtau(id,p4,p5,taugm)
+      subroutine idtaustatus(id,p4,p5,taugm,istatus)
 c     returns lifetime(c*tau(fm))*gamma for id with energy p4, mass p5
 c-----------------------------------------------------------------------
       include 'epos.inc'
       parameter (mxindx=1000,mxre=100,mxma=11,mxmx=6)
       common/crema/indx(mxindx),rema(mxre,mxma),rewi(mxre,mxma)
      *,idmx(mxma,mxmx),icre1(mxre,mxma),icre2(mxre,mxma)
+
+      parameter (indexOutOfRange=-999)
+      parameter (iijjOutOfRange=-9999)
+
            if(iabs(id).eq.14)then
       wi=.197/658.654e15
            elseif(iabs(id).eq.16)then
@@ -1592,14 +1597,13 @@ c-----------------------------------------------------------------------
       wi=.197/15.34e15
            elseif(id.eq.20)then
       wi=.197/2.6842e13
-           elseif((iabs(id).lt.100.and.id.ne.20)
-     *         .or.id.gt.1e9)then
+           elseif(iabs(id).lt.100.or.id.gt.1e9)then
       wi=0
            elseif(iabs(id).lt.1e8)then
       ix=iabs(id)/10
       if(ix.lt.1.or.ix.gt.mxindx)then
-        write(ifch,*)'id:',id
-        call utstop('idtau: ix out of range.&')
+         istatus=indexOutOfRange
+         return
       endif
       ii=indx(ix)
       jj=mod(iabs(id),10)+2
@@ -1616,8 +1620,8 @@ c-----------------------------------------------------------------------
       endif
 75    continue
       if(ii.lt.1.or.ii.gt.mxre.or.jj.lt.1.or.jj.gt.mxma)then
-      write(ifch,*)'id,ii,jj:',id,'   ',ii,jj
-      call utstop('idtau: ii or jj out of range&')
+         istatus=iijjOutOfRange
+         return
       endif
       wi=rewi(ii,jj)
            else
@@ -1640,6 +1644,30 @@ c-c   tauz=amax1(.2,tauz)
       taugm=ainfin
       else
       taugm=tau*gm
+      endif
+      return
+      end
+
+c-----------------------------------------------------------------------
+      subroutine idtau(id,p4,p5,taugm)
+c     wrapper function for idtaustatus that also checks whether IDs exist
+c     returns lifetime(c*tau(fm))*gamma for id with energy p4, mass p5
+c     fails when index out of range. idtaustatus will return negative
+c-----------------------------------------------------------------------
+      include 'epos.inc'
+      parameter (indexOutOfRange=-999)
+      parameter (iijjOutOfRange=-9999)
+      istatus=0
+
+      call idtaustatus(id,p4,p5,taugm,istatus)
+      if(istatus.eq.indexOutOfRange) then
+        write(ifch,*)"id:",id,p4,p5
+c        call alistf('tau&')
+        call utstop('idtau: ix out of range.&')
+      endif
+      if(istatus.eq.iijjOutOfRange) then
+         write(ifch,*)'id,ii,jj:',id,'   ',ii,jj
+         call utstop('idtau: ii or jj out of range&')
       endif
       return
       end
@@ -1754,7 +1782,7 @@ c-----------------------------------------------------------------------
  9998 continue
       write(ifch,*)'id: ',id
       call utstop('idtr4: indx=0.&')
-      
+
  9999 continue
       write(ifch,*)'id: ',id
       call utstop('idtr4: ix out of range.&')
@@ -1896,19 +1924,36 @@ c-----------------------------------------------------------------------
       endif
       return
       end
-
 c------------------------------------------------------------------------------
       integer function idtrafo(code1,code2,idi)
+c------------------------------------------------------------------------------
+c wrapper for idtrafo to catch if ID not found
+      character*3 code1,code2
+      integer istatus=0
+      idtrafo = idtrafostatus(code1,code2,idi,istatus)
+      if (istatus.ne.0) then
+         print *,'idtrafo: ',code1,' -> ', code2,idi,' not found.'
+         stop
+      endif
+      return
+      end
+
+
+c------------------------------------------------------------------------------
+      integer function idtrafostatus(code1,code2,idi,istatus)
+     +     result(idtrafo)
 c------------------------------------------------------------------------------
 c.....tranforms id of code1 (=idi) into id of code2 (=idtrafo)
 c.....supported codes:
 c.....'nxs' = epos
-c.....'pdg' = PDG 1996
+c.....'pdg' = PDG 1996 (DPMJET)
 c.....'qgs' = QGSJet
 c.....'ghe' = Gheisha
 c.....'sib' = Sibyll
 c.....'cor' = Corsika (GEANT)
 c.....'flk' = Fluka
+
+c.....returns status 0 if ID could be converted and 1 if it was not found in table
 
 C --- ighenex(I)=EPOS CODE CORRESPONDING TO GHEISHA CODE I ---
 
@@ -1971,13 +2016,14 @@ C  IFCTABL CONVERTS FLUKA PARTICLES INTO CORSIKA PARTICLES
      * 156, 157,   0,   0,   36*0/
 c-------------------------------------------------------------------------------
 
+      integer istatus
       character*3 code1,code2
-      parameter (ncode=5,nidt=341)
+      parameter (ncode=5,nidt=353)
       integer idt(ncode,nidt)
       double precision drangen,dummy
 
 c            nxs|pdg|qgs|cor|sib
-      data ((idt(i,j),i=1,ncode),j= 1,68)/
+      data ((idt(i,j),i=1,ncode),j= 1,70)/
      *          1,2,99,99,99             !u quark
      *     ,    2,1,99,99,99             !d
      *     ,    3,3,99,99,99             !s
@@ -2018,10 +2064,10 @@ c            nxs|pdg|qgs|cor|sib
      *     ,  231,313,99,62,30           !k*0
      *     , -231,-313,99,65,31          !k*0b
      *     ,  331,333,99,99,33           !phi
-     *     , -140,421,8,116,99           !D0(1.864)
-     *     ,  140,-421,8,119,99          !D0b(1.864)
-     *     , -240,411,7,117,99           !D(1.869)+
-     *     ,  240,-411,7,118,99          !Db(1.869)-
+     *     , -140,421,8,116,71           !D0(1.864)
+     *     ,  140,-421,8,119,72          !D0b(1.864)
+     *     , -240,411,7,117,59           !D(1.869)+
+     *     ,  240,-411,7,118,60          !Db(1.869)-
      *     , 1120,2212,2,14,13           !proton
      *     , 1220,2112,3,13,14           !neutron
      *     , 2130,3122,6,18,39           !lambda
@@ -2040,35 +2086,37 @@ c            nxs|pdg|qgs|cor|sib
      *     , 1331, 3324,99,99,47         !xi*0
      *     , 2331, 3314,99,99,48         !xi*-
      *     , 3331, 3334,99,24,49         !omega-
-     *     , 2140, 4122,9,137,99         !LambdaC(2.285)+
-     *     ,17,1000010020,99,201,1002            !  Deuteron
-     *     ,18,1000010030,99,301,1003            !  Triton
-     *     ,19,1000020040,99,402,1004            !  Alpha
-     *     ,0,0,99,0,0                  !  Air
-     *     ,99,99,99,99,99 /             !  unknown
-      data ((idt(i,j),i=1,ncode),j= 69,89)/
-     $      -340,431,99,120,99           !  Ds+
-     $     ,340,-431,99,121,99           !  Ds-
-     $     ,-241,413,99,124,99           !  D*+
-     $     ,241,-413,99,125,99           !  D*-
-     $     ,-141,423,99,123,99           !  D*0
-     $     ,141,-423,99,126,99           !  D*0b
-     $     ,-341,433,99,127,99           !  Ds*+
-     $     ,341,-433,99,128,99           !  Ds*-
-     $     ,440,441,99,122,99            !  etac
-     $     ,441,443,99,130,99            !  J/psi
-     $     ,2240,4112,99,142,99          !  sigmac0
-     $     ,1240,4212,99,141,99          !  sigmac+
-     $     ,1140,4222,99,140,99          !  sigmac++
-     $     ,2241,4114,99,163,99          !  sigma*c0
-     $     ,1241,4214,99,162,99          !  sigma*c+
-     $     ,1141,4224,99,161,99          !  sigma*c++
-     $     ,3240,4132,99,139,99          !  Xic0
-     $     ,2340,4312,99,144,99          !  Xi'c0
-     $     ,3140,4232,99,138,99          !  Xic+
-     $     ,1340,4322,99,143,99          !  Xi'c+
+     *     , 2140, 4122,9,137,89         !LambdaC(2.285)+
+     *     ,17,1000010020,99,201,1002    !Deuteron
+     *     ,18,1000010030,99,301,1003    !Triton
+     *     ,19,1000020040,99,402,1004    !Alpha
+     *     ,0,0,99,0,0                   !Air
+     $     ,41,99,99,41,99               !QBall
+     $     ,43,99,99,43,99               !Monopole
+     *     ,99,99,99,99,100 /            !unknown
+      data ((idt(i,j),i=1,ncode),j= 71,91)/
+     $      -340,431,99,120,74           !  Ds+
+     $     ,340,-431,99,121,75           !  Ds-
+     $     ,-241,413,99,124,78           !  D*+
+     $     ,241,-413,99,125,79           !  D*-
+     $     ,-141,423,99,123,80           !  D*0
+     $     ,141,-423,99,126,81           !  D*0b
+     $     ,-341,433,99,127,76           !  Ds*+
+     $     ,341,-433,99,128,77           !  Ds*-
+     $     ,440,441,99,122,73            !  etac
+     $     ,441,443,99,130,83            !  J/psi
+     $     ,2240,4112,99,142,86          !  sigmac0
+     $     ,1240,4212,99,141,85          !  sigmac+
+     $     ,1140,4222,99,140,84          !  sigmac++
+     $     ,2241,4114,99,163,96          !  sigma*c0
+     $     ,1241,4214,99,162,95          !  sigma*c+
+     $     ,1141,4224,99,161,94          !  sigma*c++
+     $     ,3240,4132,99,139,88          !  Xic0
+     $     ,2340,4312,99,144,98          !  Xi'c0
+     $     ,3140,4232,99,138,87          !  Xic+
+     $     ,1340,4322,99,143,97          !  Xi'c+
      $     ,3340,4332,99,145,99 /        !  omegac0
-      data ((idt(i,j),i=1,ncode),j= 90,nidt)/
+      data ((idt(i,j),i=1,ncode),j= 92,nidt)/
      $       1112,32224,99,99,99         !  Delta(1600)++
      $     , 1112, 2222,99,99,99         !  Delta(1620)++
      $     , 1113,12224,99,99,99         !  Delta(1700)++
@@ -2087,7 +2135,7 @@ c            nxs|pdg|qgs|cor|sib
      $     ,2224,21114,99,99,99          !  Delta(1920)-
      $     ,2224,11116,99,99,99          !  Delta(1930)-
      $     ,2224, 1118,99,99,99          !  Delta(1950)-
-     $     ,1122,12212,99,99,99          !  N(1440)+
+     $     ,1122,12212,99,99,51          !  N(1440)+
      $     ,1123, 2124,99,99,99          !  N(1520)+
      $     ,1123,22212,99,99,99          !  N(1535)+
      $     ,1124,32214,99,99,99          !  Delta(1600)+
@@ -2097,7 +2145,7 @@ c            nxs|pdg|qgs|cor|sib
      $     ,1125,12216,99,99,99          !  N(1680)+
      $     ,1126,12214,99,99,99          !  Delta(1700)+
      $     ,1127,22124,99,99,99          !  N(1700)+
-     $     ,1127,42212,99,99,99          !  N(1710)+
+     $     ,1127,42212,99,99,53          !  N(1710)+
      $     ,1127,32124,99,99,99          !  N(1720)+
      $     ,1128,12122,99,99,99          !  Delta(1900)+
      $     ,1128, 2126,99,99,99          !  Delta(1905)+
@@ -2105,7 +2153,7 @@ c            nxs|pdg|qgs|cor|sib
      $     ,1128,22214,99,99,99          !  Delta(1920)+
      $     ,1128,12126,99,99,99          !  Delta(1930)+
      $     ,1128, 2218,99,99,99          !  Delta(1950)+
-     $     ,1222,12112,99,99,99          !  N(1440)0
+     $     ,1222,12112,99,99,52          !  N(1440)0
      $     ,1223, 1214,99,99,99          !  N(1520)0
      $     ,1223,22112,99,99,99          !  N(1535)0
      $     ,1224,32114,99,99,99          !  Delta(1600)0
@@ -2115,7 +2163,7 @@ c            nxs|pdg|qgs|cor|sib
      $     ,1225,12116,99,99,99          !  N(1680)0
      $     ,1226,12114,99,99,99          !  Delta(1700)0
      $     ,1227,21214,99,99,99          !  N(1700)0
-     $     ,1227,42112,99,99,99          !  N(1710)0
+     $     ,1227,42112,99,99,54          !  N(1710)0
      $     ,1227,31214,99,99,99          !  N(1720)0
      $     ,1228,11212,99,99,99          !  Delta(1900)0
      $     ,1228, 1216,99,99,99          !  Delta(1905)0
@@ -2206,8 +2254,8 @@ c            nxs|pdg|qgs|cor|sib
      $     ,451,543,99,99,99             !  B*c+
      $     ,550,551,99,99,99             !  etab
      $     ,551,553,99,99,99             !  Upsilon
-     $     ,2341,4314,99,99,99           !  Xi*c0
-     $     ,1341,4324,99,99,99           !  Xi*c+
+     $     ,2341,4314,99,99,99           !  Xi*c0(2645)
+     $     ,1341,4324,99,99,99           !  Xi*c+(2645)
      $     ,3341,4334,99,99,99           !  omega*c0
      $     ,2440,4412,99,99,99           !  dcc
      $     ,2441,4414,99,99,99           !  dcc*
@@ -2251,24 +2299,21 @@ c            nxs|pdg|qgs|cor|sib
      $     ,3551,5534,99,99,99           !  sbb*
      $     ,4551,5544,99,99,99           !  cbb*
      $     ,5551,5554,99,99,99           !  bbb*
-     $     ,123,10213,99,99,99           !  b1
-     $     ,122,10211,99,99,99           !  a0+
-     $     ,233,10313,99,99,99           !  K0_1
-     $     ,232,10311,99,99,99           !  K*0_1
-     $     ,133,10323,99,99,99           !  K+_1
-     $     ,132,10321,99,99,99           !  K*+_1
+     $     ,123,10213,99,99,99           !  b_1+
+     $     ,122,10211,99,99,62           !  a_0+
+     $     ,-122,-10211,99,99,63         !  a_0-
+     $     ,232,10311,99,99,66           !  K*0_1
+     $     ,-232,-10311,99,99,67         !  K*0b_1
+     $     ,132,10321,99,99,64           !  K*+_1
+     $     ,-132,-10321,99,99,65         !  K*-_1
      $     ,143,10423,99,99,99           !  D0_1
-     $     ,132,10421,99,99,99           !  D*0_1
+     $     ,142,10421,99,99,99           !  D*0_1
      $     ,243,10413,99,99,99           !  D+_1
      $     ,242,10411,99,99,99           !  D*+_1
      $     ,343,10433,99,99,99           !  D+s_1
      $     ,342,10431,99,99,99           !  D*0s+_1
-     $     ,223,10113,99,99,99           !  b_10
-     $     ,222,10111,99,99,99           !  a_00
-     $     ,113,10223,99,99,99           !  h_10
-     $     ,112,10221,99,99,99           !  f_00
-     $     ,333,10333,99,99,99           !  h'_10
-     $     ,332,10331,99,99,99           !  f'_00
+     $     ,113,10113,99,99,99           !  b_10
+     $     ,112,10111,99,99,61           !  a_00
      $     ,443,10443,99,99,99           !  h_1c0
      $     ,442,10441,99,99,99           !  Xi_0c0
      $     ,444,10443,99,99,99           !  psi'
@@ -2284,22 +2329,31 @@ c            nxs|pdg|qgs|cor|sib
      $     ,552,10551,99,99,99           !  Upsilon'*
      $     ,124,20213,99,99,99           !  a_1+
      $     ,125,215,99,99,99             !  a_2+
-     $     ,234,20313,99,99,99           !  K*0_1
-     $     ,235,315,99,99,99             !  K*0_2
-     $     ,134,20323,99,99,99           !  K*+_1
-     $     ,135,325,99,99,99             !  K*+_2
+     $     ,126,10215,99,99,99           !  pi_2+(1670)
+     $     ,127,217,99,99,99             !  rho_3+(1690)
+     $     ,232,20313,99,99,99           !  K*0_1(1400)
+     $     ,233,315,99,99,99             !  K*0_2(1430)
+     $     ,234,10311,99,99,99           !  K*0_0(1430)
+     $     ,132,20323,99,99,99           !  K*+_1(1400)
+     $     ,133,325,99,99,99             !  K*+_2(1430)
+     $     ,134,10321,99,99,99           !  K*+_0(1430)
      $     ,144,20423,99,99,99           !  D*_10
-     $     ,135,425,99,99,99             !  D*_20
+     $     ,145,425,99,99,99             !  D*_20
      $     ,244,20413,99,99,99           !  D*_1+
      $     ,245,415,99,99,99             !  D*_2+
      $     ,344,20433,99,99,99           !  D*_1s+
      $     ,345,435,99,99,99             !  D*_2s+
-     $     ,224,20113,99,99,99           !  a_10
-     $     ,225,115,99,99,99             !  a_20
-     $     ,114,20223,99,99,99           !  f_10
-     $     ,115,225,99,99,99             !  f_20
-     $     ,334,20333,99,99,99           !  f'_10
-     $     ,335,335,99,99,99             !  f'_20
+     $     ,114,20113,99,99,99           !  a_10
+     $     ,115,115,99,99,99             !  a_20
+     $     ,116,10115,99,99,99           !  pi_20(1670)
+     $     ,117,117,99,99,99             !  rho_30(1690)
+     $     ,222,9010221,99,99,99         !  f_00(980)
+     $     ,223,10223,99,99,99           !  h_10(1170)
+     $     ,224,225,99,99,99             !  f_20(1270)
+     $     ,225,20223,99,99,99           !  f_10(1285)
+     $     ,226,9030221,99,99,99         !  f_00(1500)
+     $     ,332,20333,99,99,99           !  f_10(1420)
+     $     ,333,335,99,99,99             !  f'_20(1525)
      $     ,444,20443,99,99,99           !  Xi_1c0
      $     ,445,445,99,99,99             !  Xi_2c0
      $     ,254,20513,99,99,99           !  db*_10
@@ -2314,17 +2368,23 @@ c            nxs|pdg|qgs|cor|sib
      $     ,555,555,99,99,99             !  bb*_20
      $     ,11099,9900110,99,99,99       !  diff pi0 state
      $     ,12099,9900210,99,99,99       !  diff pi+ state
+     $     ,13099,9900320,99,99,99       !  diff K+ state
      $     ,22099,9900220,99,99,99       !  diff omega state
+     $     ,2099,9900310,99,99,99        !  diff K0 state
+     $     ,-2099,9900130,99,99,99       !  diff pi+ state
      $     ,33099,9900330,99,99,99       !  diff phi state
      $     ,44099,9900440,99,99,99       !  diff J/psi state
      $     ,112099,9902210,99,99,99      !  diff proton state
      $     ,122099,9902110,99,99,99      !  diff neutron state
+     $     ,213099,9903120,99,99,99      !  diff lambda state
      $     ,800000110,110,99,99,99       !  Reggeon
-     $     ,800000990,990,99,99,99 /     !  Pomeron
+     $     ,800000990,990,99,99,99 /      !  Pomeron
+
 
 
 c      print *,'idtrafo',' ',code1,' ',code2,idi
-
+      istatus=0
+      idtrafo=0
       nidtmx=68
       id1=idi
       if(code1.eq.'nxs')then
@@ -2351,14 +2411,14 @@ c      print *,'idtrafo',' ',code1,' ',code2,idi
         j=1
         ji=j
         if(i.eq.2.and.id1.gt.1000000000)then   !nucleus from PDG
-          idtrafo=id1 
+          idtrafo=id1
           return
         elseif(i.eq.4.and.id1.gt.402)then               !nucleus from Corsika
-          idtrafo=1000000000+mod(id1,100)*10000+(id1/100)*10   
+          idtrafo=1000000000+mod(id1,100)*10000+(id1/100)*10
           return
         elseif(i.eq.5.and.id1.gt.1004)then               !nucleus from Sibyll
           id1=(id1-1000)
-          idtrafo=1000000000+id1/2*10000+id1*10   
+          idtrafo=1000000000+id1/2*10000+id1*10
           return
         elseif(id1.eq.130.and.i.eq.2)then
           idtrafo=-20
@@ -2366,18 +2426,19 @@ c      print *,'idtrafo',' ',code1,' ',code2,idi
         endif
         if(i.eq.2) nidtmx=nidt
         if(i.eq.4) nidtmx=89
+        if(i.eq.5) nidtmx=nidt    ! maximal reach in conversion table
       elseif(code2.eq.'pdg')then
         j=2
         ji=j
         if(i.eq.1.and.id1.gt.1000000000)then !nucleus from NEXUS
-          idtrafo=id1 
+          idtrafo=id1
           return
         elseif(i.eq.4.and.id1.gt.402)then               !nucleus from Corsika
-          idtrafo=1000000000+mod(id1,100)*10000+(id1/100)*10   
+          idtrafo=1000000000+mod(id1,100)*10000+(id1/100)*10
           return
         elseif(i.eq.5.and.id1.gt.1004)then               !nucleus from Sibyll
           id1=(id1-1000)
-          idtrafo=1000000000+id1/2*10000+id1*10   
+          idtrafo=1000000000+id1/2*10000+id1*10
           return
         elseif(id1.eq.-20.and.i.eq.1)then
           idtrafo=130
@@ -2440,6 +2501,8 @@ c      print *,'idtrafo',' ',code1,' ',code2,idi
             else
               mm=int(drangen(dummy)*dble(m))
             endif
+          else      !m=0 only one line, take care of sign
+            if(idt(i,n).lt.0)isi=-isi
           endif
           idtrafo=idt(j,n+mm)*isi
           if(abs(idtrafo).eq.99)call utstop('New particle not allowed ')
@@ -2473,10 +2536,9 @@ c      print *,'idtrafo',' ',code1,' ',code2,idi
         return
       endif
 
-      print *, 'idtrafo: ',code1,' -> ', code2,id1,' not found.   '
-      stop
+      istatus=1
 c      idtrafocx=0
-c      return
+      return
 
  100  if(j.eq.4)then            !corsika
         if(idtrafo.eq.201)then
@@ -2501,4 +2563,3 @@ c      return
       endif
 
       end
-

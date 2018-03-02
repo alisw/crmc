@@ -9,26 +9,11 @@
 
 *) fix or disable many fortran compiler warnings for DPMJet/Pyhtia
 
-*) change logic to stop job if tables in epos and qgsjet are not found.
-Only if option "--produce-tables" is provided: generate tables.
-
-                          DONE, AND VALIDATED
-
-*) read zipped qgsjetii-4 input data. I can do this, or Colin do you
-want to work on it?
-                          DONE, AND VALIDATED
-
 *) add crossing angle to the beams (request by Menjo-san)
 
 
 ------ not critical -------
 
-
-*) make ROOT optional package.
- -) remove us of TSystem, use standard tools to read environment
- -) don't use TStopwatch
-
-                          DONE
-
+*) messages at installation about FastJet are confusing
 
 *) disable epos, too <-- from TP : not completely possible without rewritting a lot (it is done in CONEX)

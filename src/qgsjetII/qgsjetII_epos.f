@@ -57,7 +57,7 @@ c QGSJET-II Common
       call iclass(idtarg,icltar)
       icp=idtrafo('nxs','qgs',idproj)
       if(icp.eq.0)icp=1-2*int(rangen()+0.5)       !pi0=pi+ or p-
-      e0=dble(elab)-dble(amproj)
+      e0=dble(elab)!-dble(amproj)                 !lab energy is used according to Sergey
       call qgini(e0,icp,maproj,matarg)
       call qgini(e0,icp,maproj,matarg)        !again to set bm properly
       bmax=BMAXQGS

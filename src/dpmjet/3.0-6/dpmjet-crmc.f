@@ -47,6 +47,13 @@ c     fresh common block
       COMMON/PYDAT2/KCHG(500,4),PMAS(500,4),PARF(2000),VCKM(4,4)
       COMMON/PYDAT3/MDCY(500,3),MDME(4000,2),BRAT(4000),KFDP(4000,5)
       COMMON/PYPARS/MSTP(200),PARP(200),MSTI(200),PARI(200)
+* properties of interacting particles
+      COMMON /DTPRTA/ IT,ITZ,IP,IPZ,IJPROJ,IBPROJ,IJTARG,IBTARG
+
+c      dimension WHAT(6)
+
+      integer istatus
+      real taugm
 
 C     general initialization
       NCASES = -1               !skip reading steering cards
@@ -67,15 +74,45 @@ c     will be treated as nucleus in DT_INIT and NPMASS,... will be used
       CALL DT_INIT(NCASES,EPROJ,NPMASS,NPCHAR,NTMASS,NTCHAR,IDPDG
      +,IGLAU)
 
+
+* pre-initialization of profile function for nuclear collisions*
+c      ECM=dble(ecms)
+c      CALL DT_XSGLAU(NPMASS,NTMASS,IJPROJ,0D0,0D0,ECM,1,1,-1)
+
 c set decay flag in Pythia for DPMJET (after DT_INIT otherwise default is used)
       call IniDkyJetset
 
 c particle without breit-wigner decay will be decayed in EPOS to get full history
-      MDCY(13,1)=1     !force muon decay in Jetset
+
       do i=100,500
-        if(PMAS(i,2).LT.PARP(41))MDCY(i,1)=0
-c        print *,i,PMAS(i,1),PMAS(i,2),KCHG(I,4),PMAS(i,2).GE.PARP(41)
-      enddo
+         idpdg = KCHG(I,4)
+
+c     don't touch decays with unknown code
+         eposid = idtrafostatus('pdg','nxs',idpdg,istatus)
+         if(istatus.ne.0) then
+            go to 100
+         endif
+
+c     don't touch decays with unknown width
+         call idtaustatus(eposid,0,0,taugm,istatus)
+c        print *,i,(taugm.eq.indexOutOfRange.or.taugm.eq.iijjOutOfRange)
+c    +        ,(PMAS(i,2).LT.PARP(41))
+         if(istatus.ne.0) then
+            go to 100
+         endif
+
+c     don't touch decays with too small width
+         if(PMAS(i,2).LT.PARP(41)) then
+            go to 100
+         endif
+
+c     because epos var ifrade is not 0 it will automatically use epos to decay when switched off in pythia
+         if(ish.ge.2) write(ifch,*)
+     +        "CF Id:",i,PMAS(i,1),PMAS(i,2),
+     +        "PDG ID:",KCHG(I,4),
+     +        "(decay in epos)"
+         MDCY(i,1)=0
+ 100  enddo !loop over 100-500 particle ids
 
 c     initialize cross-sections by calling epos-bas.f function -> models.F -> dpmjet-crmc.f
       call xsigma
@@ -104,6 +141,8 @@ c-----------------------------------------------------------------------
       CHARACTER*8  ANAME
       COMMON /DTPART/ ANAME(210),AAM(210),GA(210),TAU(210),
      &     IICH(210),IIBAR(210),K1(210),K2(210)
+* central particle production, impact parameter biasing
+      COMMON /DTIMPA/ BIMIN,BIMAX,XSFRAC,ICENTR
 * Glauber formalism: collision properties
       COMMON /DTGLCP/ RPROJ,RTARG,BIMPAC,
      &                NWTSAM,NWASAM,NWBSAM,NWTACC,NWAACC,NWBACC
@@ -207,7 +246,7 @@ c     LIST is the code of final particle, P - its 4-momentum and mass.
          IF(ISTHKK(k).GE.1 .AND. ISTHKK(k).LE.2 .AND. ic.NE.99999 )THEN !! if final particle
             ist=ISTHKK(k)-1 !!0 means last generation other codes are e.g. for pomerons, remnants...
          elseif(ic.eq.99999)then
-            ist=31
+            ist=31 !convert to status for epos string
          else
             ist=abs(ISTHKK(k)) !!0 means last generation other codes are e.g
          endif
@@ -462,20 +501,20 @@ c in dpmjet the control card xs-table starts to calculate the table and then qui
 c it calls subroutine dt_xstabl with the 6 parameters for binning and energy and binning and q
 c in this subroutine the actual table COMMON/DTPART/ is filled
 c this happens with dt_xsglau. emulsion is off? at least ncompo is 0 => no loops over table
-c instead always (1,1,1) contians the value
+c instead always (1,1,1) contains the value
 c xprod seems to be prod + quasi-ela. this is why we subtract it again
 
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       include 'epos.inc'
       integer niter !input
-      real stot,sine,sela,stotaa,sineaa,selaaa !subroutine return values
+      real stotaa,sineaa,selaaa !subroutine return values
 
       PARAMETER (TINY10=1.0D-10,TINY2=1.0D-2,ZERO=0.0D0,DLARGE=1.0D10,
      &           OHALF=0.5D0,ONE=1.0D0,TWO=2.0D0)
 
 * properties of interacting particles
       COMMON /DTPRTA/ IT,ITZ,IP,IPZ,IJPROJ,IBPROJ,IJTARG,IBTARG
-      
+
 * Glauber formalism: cross sections
       PARAMETER (NCOMPX=20,NEB=8,NQB= 5,KSITEB=50)
       COMMON /DTGLXS/ ECMNN(NEB),Q2G(NQB),ECMNOW,Q2,

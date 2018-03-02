@@ -62,7 +62,7 @@ c QGSJET-II Common
       if(abs(icp).gt.5)
      &  call utstop('Projectile not allowed in QGSJET-II !&')
 c Important to calculate e0 (kinetic energy) in double precision
-      e0=dble(elab)-dble(amproj)
+      e0=dble(elab)!-dble(amproj)           !lab energy is used according to Sergey
       call qgini(e0,icp,maproj,matarg)
       call qgini(e0,icp,maproj,matarg)        !again to set bm properly
       bmax=BMAXQGS
@@ -366,10 +366,10 @@ c boost in CMS frame
             call utlob5(yhaha, pptl(1,nptl), pptl(2,nptl)
      .        , pptl(3,nptl), pptl(4,nptl), pptl(5,nptl))
             
-c give particle proper mass ... 
-              pptl(5,nptl)=amepo
-              pptl(4,nptl)=sqrt(pptl(1,nptl)**2+pptl(2,nptl)**2
-     .                         +pptl(3,nptl)**2+pptl(5,nptl)**2)
+c give particle proper mass ... (but violate energy conservation)
+c              pptl(5,nptl)=amepo
+c              pptl(4,nptl)=sqrt(pptl(1,nptl)**2+pptl(2,nptl)**2
+c     .                         +pptl(3,nptl)**2+pptl(5,nptl)**2)
 
             if(ish.ge.5)write(ifch,'(a,i5,a,i5,a,4(e10.4,1x),f6.3)')
      $       ' particle from qgsjet ',nptl,' id :',idptl(nptl)

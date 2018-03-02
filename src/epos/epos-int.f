@@ -69,6 +69,10 @@ c     -------------------------------------------------
 5000  continue
 
       nptlbd=nptl
+      if(irescl.eq.1)then
+        call utresc(iret)
+        if(iret.gt.0)goto 1001
+      endif
 
       call xSpaceTime
 

@@ -8,15 +8,19 @@ c-----------------------------------------------------------------------
 c Primary initialization for Sibyll
 c-----------------------------------------------------------------------
       include 'epos.inc'
-      COMMON /S_DEBUG/ Ncall, Ndebug
-      COMMON /S_CSYDEC/ CBR(102), KDEC(612), LBARP(49), IDB(49)
+      INTEGER NCALL, NDEBUG, LUN
+      COMMON /S_DEBUG/ NCALL, NDEBUG, LUN
+      DOUBLE PRECISION CBR
+      INTEGER KDEC,LBARP,IDB
+      COMMON /S_CSYDEC/ CBR(223+16+12+8), KDEC(1338+6*(16+12+8)),
+     &     LBARP(99), IDB(99)
 
       call utpri('inisib',ish,ishini,6)
       write(ifmt,'(a,i6)')'initialize Sibyll ...'
 
       Ndebug=0
       if(ish.ge.3)Ndebug=ish-2
-
+      lun = 7
 C... SIBYLL initialization
       CALL SIBYLL_INI
 
@@ -24,7 +28,7 @@ C...Cross sections for nucleus-nucleus and hadron nucleus
       CALL NUC_NUC_INI
 
 C...define all particles as unstable
-      do i=1,49
+      do i=1,99
         IDB(i) = abs(IDB(i))   ! >0 means unstable
       enddo
 
@@ -35,6 +39,7 @@ C...define all particles as unstable
       
 
       call utprix('inisib',ish,ishini,6)
+      
       end
 
 c-----------------------------------------------------------------------
@@ -43,9 +48,11 @@ c-----------------------------------------------------------------------
 c Initialization for each type of event (for given proj, targ and egy)
 c-----------------------------------------------------------------------
       include 'epos.inc'
-      COMMON /S_CSYDEC/ CBR(102), KDEC(612), LBARP(49), IDB(49)
+      DOUBLE PRECISION CBR
+      INTEGER KDEC,LBARP,IDB
+      COMMON /S_CSYDEC/ CBR(223+16+12+8), KDEC(1338+6*(16+12+8)),
+     &     LBARP(99), IDB(99)
       common/geom/rmproj,rmtarg,bmax,bkmx
-
 
       if(matarg.gt.18.or.maproj.gt.64)
      &  call utstop('Mass too big for Sibyll (Mtrg<18, Mprj<64) !&')
@@ -107,7 +114,7 @@ c (part taken from epos-dky: hdecas)
       else
 
 C...define all particles as stable
-      do i=1,49
+      do i=1,99
         IDB(i) = -abs(IDB(i))   ! <0 means stable
       enddo
 
@@ -128,28 +135,38 @@ c-----------------------------------------------------------------------
       include 'epos.inc'
       common/geom/rmproj,rmtarg,bmax,bkmx
 C  SIBYLL
-      COMMON /S_PLIST/ P(8000,5), LLIST(8000), NP
-      COMMON /S_PLNUC/ PA(5,40000), LLA(40000), NPA
+      DOUBLE PRECISION P
+      INTEGER NP,LLIST,NP_max
+      PARAMETER (NP_max=8000)
+      COMMON /S_PLIST/ P(NP_max,5), LLIST(NP_max), NP
+
+      INTEGER NCALL, NDEBUG, LUN
+      COMMON /S_DEBUG/ NCALL, NDEBUG, LUN
+
+      INTEGER NW_max
       PARAMETER (NW_max = 20)
-      PARAMETER (NS_max = 20, NH_max = 50)
-      PARAMETER (NJ_max = (NS_max+NH_max)*NW_max)
-      COMMON /S_CHIST/ X1J(NJ_max),X2J(NJ_max),
-     &    X1JSUM(NW_max),X2JSUM(NW_max),PTJET(NJ_max),PHIJET(NJ_max),
-     &    NNPJET(NJ_max),NNPSTR(2*NW_max),NNSOF(NW_max),NNJET(NW_max),
-     &    JDIF(NW_max),NW,NJET,NSOF
+
+      INTEGER NNSOF,NNJET,JDIF,NWD,NJET,NSOF
+      COMMON /S_CHIST/ NNSOF(NW_max),NNJET(NW_max),
+     &     JDIF(NW_max),NWD,NJET,NSOF
+
+      COMMON /S_PLNUC/ PA(5,40000), LLA(40000), NPA
+      double precision engy_dbl,ptm,pa
+      COMMON /S_CLDIF/ LDIFF
+      INTEGER          LDIFF
 
       iret=0
       b1=bminim
       b2=min(bmax,bmaxim)
       a=pi*(b2**2-b1**2)
-
       if(a.gt.0..and.rangen().gt.sibincs/10./a)goto 1001   !no interaction
       if(ish.ge.3)call alist('Determine Sibyll Production&',0,0)
 
       nptl=0
       NP=0
       NPA=0
-      
+      LDIFF=0        !all types of events
+
       nevt=1
       kolevt=-1
       koievt=-1
@@ -170,21 +187,50 @@ C  SIBYLL
       call conre
       call conwr
 
+      engy_dbl = dble(engy)
       itrg=matarg
       if(idtargin.eq.0)itrg=0
       if(maproj.eq.1)then             !hadronic projectile
         L0=idtrafo('nxs','sib',idproj)
-        CALL SIBYLL (L0, itrg, engy)
+        CALL SIBYLL (L0, itrg, engy_dbl)
         CALL DECSIB
         if(ish.ge.5)write(ifch,'(a,i5)')
      $         ' number of particles from Sibyll :',NP
 c save interaction type
-        if(JDIF(1).eq.0)then
-          typevt=1                !ND
-        elseif(JDIF(1).eq.3)then
-          typevt=2                !DD
+        if(nwd.eq.1)then
+c     single nucleon interaction
+           if(JDIF(1).eq.0)then
+              typevt=1          !ND
+           elseif(JDIF(1).eq.3)then
+              typevt=2          !DD
+           elseif(JDIF(1).eq.2)then
+              typevt=-4         !SD tar
+           else
+              typevt=4          !SD pro
+           endif
         else
-          typevt=4                !SD
+c     multiple nucleon interaction
+           indif=0
+           idif_b=0
+           idif_t=0
+           idif_d=0
+           do jj=1,nwd
+              if(jdif(jj).eq.0) indif=1
+              if(jdif(jj).eq.1) idif_b=1
+              if(jdif(jj).eq.2) idif_t=1
+              if(jdif(jj).eq.3) idif_d=1
+           enddo
+           if(indif.eq.1)then
+              typevt=1
+           else
+              if(idif_d.eq.1.or.(idif_t.eq.1.and.idif_b.eq.1))then
+                 typevt=1                 
+              elseif(idif_t.eq.1)then
+                 typevt=-4
+              else
+                 typevt=4
+              endif
+           endif
         endif
         do k=1,NP
 
@@ -210,11 +256,11 @@ c LLIST is the code of final particle, P - its 4-momentum and mass.
      $         ' epos particle ',nptl,' id :',id,' after conversion'
             
 
-          pptl(1,nptl)=P(k,1)   !P_x
-          pptl(2,nptl)=P(k,2)   !P_y
-          pptl(3,nptl)=P(k,3)   !P_z
-          pptl(4,nptl)=abs(P(k,4))   !E
-          pptl(5,nptl)=P(k,5)   !mass
+          pptl(1,nptl)=sngl(P(k,1))   !P_x
+          pptl(2,nptl)=sngl(P(k,2))  !P_y
+          pptl(3,nptl)=sngl(P(k,3))   !P_z
+          pptl(4,nptl)=abs(sngl(P(k,4)))   !E
+          pptl(5,nptl)=sngl(P(k,5))   !mass
           ityptl(nptl)=0
           iorptl(nptl)=1
           jorptl(nptl)=maproj+matarg
@@ -235,9 +281,9 @@ c LLIST is the code of final particle, P - its 4-momentum and mass.
 
 
         enddo
-        if(NW.lt.matarg)then
-          ntgevt=NW
-          do is=maproj+1+NW,maproj+matarg !make the ns last target nucleon final
+        if(NWD.lt.matarg)then
+          ntgevt=NWD
+          do is=maproj+1+NWD,maproj+matarg !make the ns last target nucleon final
             iorptl(is)=0
             istptl(is)=0
           enddo
@@ -245,7 +291,7 @@ c LLIST is the code of final particle, P - its 4-momentum and mass.
       else                          !for nucleus projectile
         nbar=0
         IAP = maproj
-        CALL SIBNUC (IAP, itrg, engy)
+        CALL SIBNUC (IAP, itrg, engy_dbl)
         if(ish.ge.5)write(ifch,'(a,i5)')
      $         ' number of particles from Sibyll :',NPA
         do 100 k=1,NPA
@@ -262,7 +308,7 @@ c LLIST is the code of final particle, P - its 4-momentum and mass.
           if(ic.ge.1001) then                !count spectators
             nNuc=ic-1000
             if(infragm.le.1
-     &         .or.PA(4,k).lt.0.5*egymin)then   !nuclear interaction only above min energy, otherwise : fragmentation
+     &         .or.PA(4,k).lt.0.5d0*dble(egymin))then   !nuclear interaction only above min energy, otherwise : fragmentation
               ns=ns+nNuc
               goto 100
             elseif(ic.eq.1001)then
@@ -291,11 +337,11 @@ c LLIST is the code of final particle, P - its 4-momentum and mass.
 
           nbar=nbar+nNuc
           if(abs(id).gt.1000.and.nNuc.eq.0)nbar=nbar+sign(1,id)
-          pptl(1,nptl)=PA(1,k)  !P_x
-          pptl(2,nptl)=PA(2,k)  !P_y
-          pptl(3,nptl)=PA(3,k)  !P_z
-          pptl(4,nptl)=PA(4,k)  !E
-          pptl(5,nptl)=PA(5,k)  !mass
+          pptl(1,nptl)=sngl(PA(1,k))  !P_x
+          pptl(2,nptl)=sngl(PA(2,k))  !P_y
+          pptl(3,nptl)=sngl(PA(3,k))  !P_z
+          pptl(4,nptl)=sngl(PA(4,k))  !E
+          pptl(5,nptl)=sngl(PA(5,k))  !mass
           istptl(nptl)=0
           ityptl(nptl)=0
           iorptl(nptl)=1
@@ -419,6 +465,10 @@ c egy - center of mass energy
 c------------------------------------------------------------------------------
       include 'epos.inc'
       dimension SDIF(3)
+      double precision egy_dbl,ST,SEL,SINEL,SDIF,SL,RHO,AL,
+     &     SIGTA,SIGELAdum,SIGQEA,SIGSDA,SIGQSDA
+
+      egy_dbl = dble(egy)
 
       if(iclpro.eq.1)then
         L=2
@@ -427,10 +477,11 @@ c------------------------------------------------------------------------------
       else
         L=3
       endif
-      call SIB_SIGMA_HP(L,egy,ST,SEL,SINEL,SDIF,SL,RHO)
+      call SIB_SIGMA_HP(L,egy_dbl,ST,SEL,SINEL,SDIF,SL,RHO)
       if(matar.gt.1)then
 C  calculate hadron-A(matar) cross section
-        CALL GLAUBER(matar,ST,SL,RHO,SIGTA,SIGELAdum,SIGQEA)
+        CALL GLAUBER2
+     &        (matar,ST,SL,RHO,AL,SIGTA,SIGELAdum,SIGQEA,SIGSDA,SIGQSDA)
         fsibcrse=SIGTA-SIGQEA
       else
         fsibcrse=SINEL
@@ -452,7 +503,7 @@ c matarg - projec mass number
 c id - proj id (sibyll code)
 c------------------------------------------------------------------------------
       include 'epos.inc'
-      double precision egy
+      double precision egy, sigbmdif, sibcr,SSIGNUC,alnuc,sqs_dbl
       COMMON /CLENNN/ SSIGNUC(60), ALNUC(60)
 
       sibcrse=0.d0
@@ -472,15 +523,15 @@ c------------------------------------------------------------------------------
           else
             L=3
           endif
-          call SIB_SIGMA_HAIR (L,sqs,sibcr)
+          call SIB_SIGMA_HAIR (L,sqs_dbl,sibcr, sigbmdif)
           sibcrse=dble(sibcr)
         else
-          E0=real(egy)*1.e-3         !e0 in TeV
+          E0=egy*1.d-3         !e0 in TeV
           CALL  SIGNUC_INI(mapro,E0) !  fills SSIGNUC and ALNUC
-          sibcrse  = dble(SSIGNUC(mapro))
+          sibcrse  = SSIGNUC(mapro)
         endif
       else
-        sqs=sqrt( 2*real(egy)*amtar+amtar**2+ampro**2 )
+        sqs=sqrt( 2*sngl(egy)*amtar+amtar**2+ampro**2 )
         sibcrse=dble(fsibcrse(sqs,mapro,matar))
       endif
 
@@ -488,17 +539,43 @@ c------------------------------------------------------------------------------
       end
 
 c--------------------------------------------------------------------
-      function S_RNDM(idum)
+      double precision function S_RNDM(idum)
 c--------------------------------------------------------------------
 c random number generator
 c--------------------------------------------------------------------
       include 'epos.inc'
+      double precision drangen
 
-      S_RNDM=rangen()
+      S_RNDM= drangen(dble(idum))
       if(irandm.eq.1)write(ifch,*)'S_RNDM()= ',S_RNDM,idum
 
       return
       end
  
+
+
+C=======================================================================
+
+      DOUBLE PRECISION FUNCTION GASDEV(IDUM)
+
+C-----------------------------------------------------------------------
+C   Gaussian deviation
+c   linked to corsikas gaussian random number generator to keep
+c   random number sequence intact.
+C-----------------------------------------------------------------------
+      IMPLICIT NONE
+
+      DOUBLE PRECISION RANNORM,XMEAN,XDEV
+      INTEGER          IDUM
+      SAVE
+      EXTERNAL         RANNORM
+C-----------------------------------------------------------------------
+      GASDEV = IDUM
+      XMEAN  = 0.D0
+      XDEV   = 1.D0
+      GASDEV = RANNORM(XMEAN,XDEV)
+
+      RETURN
+      END
 
 

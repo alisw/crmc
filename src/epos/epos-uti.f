@@ -1561,6 +1561,8 @@ c-----------------------------------------------------------------------
       parameter (nflav=6)
       integer jcp(nflav,2),jcm(nflav,2)
 
+      imod=5   !4 for resonance and 5 for minimum mass
+
       do i=1,nflav
       do j=1,2
       if(jcp(i,j).ne.0)goto1
@@ -1572,7 +1574,7 @@ c-----------------------------------------------------------------------
       kec=jcm(4,1)-jcm(4,2)
       keb=jcm(5,1)-jcm(5,2)
       ket=jcm(6,1)-jcm(6,2)
-      utamnx=utamnu(keu,ked,kes,kec,keb,ket,5)
+      utamnx=utamnu(keu,ked,kes,kec,keb,ket,imod)
       return
 1     continue
 
@@ -1587,7 +1589,7 @@ c-----------------------------------------------------------------------
       kec=jcp(4,1)-jcp(4,2)
       keb=jcp(5,1)-jcp(5,2)
       ket=jcp(6,1)-jcp(6,2)
-      utamnx=utamnu(keu,ked,kes,kec,keb,ket,5)
+      utamnx=utamnu(keu,ked,kes,kec,keb,ket,imod)
       return
 2     continue
 
@@ -1600,16 +1602,16 @@ c-----------------------------------------------------------------------
       ke=keu+ked+kes+kec+keb+ket
       if(mod(ke+1,3).eq.0)then
         keu=keu+1
-        amms1=utamnu(keu,ked,kes,kec,keb,ket,5)
+        amms1=utamnu(keu,ked,kes,kec,keb,ket,imod)
         keu=keu-1
         ked=ked+1
-        amms2=utamnu(keu,ked,kes,kec,keb,ket,5)
+        amms2=utamnu(keu,ked,kes,kec,keb,ket,imod)
       elseif(mod(ke-1,3).eq.0)then
         keu=keu-1
-        amms1=utamnu(keu,ked,kes,kec,keb,ket,5)
+        amms1=utamnu(keu,ked,kes,kec,keb,ket,imod)
         keu=keu+1
         ked=ked-1
-        amms2=utamnu(keu,ked,kes,kec,keb,ket,5)
+        amms2=utamnu(keu,ked,kes,kec,keb,ket,imod)
       else
         amms1=0
         amms2=0
@@ -1626,16 +1628,16 @@ c-----------------------------------------------------------------------
       ke=keu+ked+kes+kec+keb+ket
       if(mod(ke+1,3).eq.0)then
         keu=keu+1
-        amms3=utamnu(keu,ked,kes,kec,keb,ket,5)
+        amms3=utamnu(keu,ked,kes,kec,keb,ket,imod)
         keu=keu-1
         ked=ked+1
-        amms4=utamnu(keu,ked,kes,kec,keb,ket,5)
+        amms4=utamnu(keu,ked,kes,kec,keb,ket,imod)
       elseif(mod(ke-1,3).eq.0)then
         keu=keu-1
-        amms3=utamnu(keu,ked,kes,kec,keb,ket,5)
+        amms3=utamnu(keu,ked,kes,kec,keb,ket,imod)
         keu=keu+1
         ked=ked-1
-        amms4=utamnu(keu,ked,kes,kec,keb,ket,5)
+        amms4=utamnu(keu,ked,kes,kec,keb,ket,imod)
       else
         call utstop('utamnx: no singlet possible (2)&')
       endif

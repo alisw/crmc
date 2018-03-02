@@ -40,8 +40,14 @@ c no last generation -> no decay
       if(istptl(i).ne.0)return
 
       if(nptl.gt.mxptl-10)then
-        call alist('end&',1,nptl)
-        call utstop('hdecas: mxptl too small&')
+        if(model.eq.12)then
+          write(ifmt,*)
+     .    'Number of particles too large after decay with DPMJET !'
+          nptl=mxptl-10
+        else
+          call alist('end&',1,nptl)
+          call utstop('hdecas: mxptl too small&')
+        endif
       endif
 c entry
 
@@ -50,12 +56,11 @@ c entry
 
 
 c skip nuclei
-
-      if(idptl(i).gt.1e9)return
+      if(idptl(i).gt.1000000000)return
 
 c small droplet decay
 
-      if(iabs(idptl(i)).gt.1e8)then
+      if(iabs(idptl(i)).gt.100000000)then
         stop'hdecas: no longer supported (2).       '
       endif
 

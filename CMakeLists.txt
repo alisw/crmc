@@ -10,7 +10,7 @@ OPTION (__QGSJET01__   "Build with model" OFF)
 OPTION (__GHEISHA__    "Build with model" OFF)
 OPTION (__PYTHIA__     "Build with model" OFF)
 OPTION (__HIJING__     "Build with model" OFF)
-OPTION (__SIBYLL__     "Build with model" OFF)
+OPTION (__SIBYLL__     "Build with model" ON)
 OPTION (__PHOJET__     "Build with model" OFF)
 OPTION (__DPMJET__     "Build with model" OFF)
 OPTION (__QGSJETII03__ "Build with model" OFF)
@@ -29,8 +29,8 @@ MESSAGE(STATUS "build ${CMAKE_BINARY_DIR}")
 
 ## The version number. Only nummeric PLEASE!
 SET (CRMC_VERSION_MAJOR 1)
-SET (CRMC_VERSION_MINOR 5)
-SET (CRMC_VERSION_PATCH 3)
+SET (CRMC_VERSION_MINOR 6)
+SET (CRMC_VERSION_PATCH 0)
 
 ##Compiler options
 # hotfix for lxbatch not sure why he selects wrong compiler
@@ -68,6 +68,18 @@ IF("${isSystemDir}" STREQUAL "-1")
   SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
 ENDIF("${isSystemDir}" STREQUAL "-1")
 
+## check for c++11 support
+include(CheckCXXCompilerFlag)
+CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
+CHECK_CXX_COMPILER_FLAG("-std=c++0x" COMPILER_SUPPORTS_CXX0X)
+if(COMPILER_SUPPORTS_CXX11)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+elseif(COMPILER_SUPPORTS_CXX0X)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
+else()
+        message(STATUS "The compiler ${CMAKE_CXX_COMPILER} has no C++11 support. Please consider updating your C++ compiler.")
+endif()
+
 ## find packages
 SET (CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/CMakeModules" CACHE PATH "Module Path" FORCE)
 
@@ -75,7 +87,7 @@ SET (CRMC_SOURCES src/crmcMain.cc src/CRMC.cc src/CRMCinterface.cc src/CRMCoptio
 
 
 FIND_PACKAGE (Root)
-if (Root_FOUND) 
+if (Root_FOUND)
   INCLUDE_DIRECTORIES ("${ROOT_INCLUDE_DIR}")
   LIST(APPEND CRMC_SOURCES src/OutputPolicyROOT.cc)
   add_definitions(-DWITH_ROOT)
@@ -127,9 +139,17 @@ FILE(READ ${PROJECT_SOURCE_DIR}/src/hijing/hipyset1.35.f-HEPMC-TEMPLATE template
 STRING( REGEX REPLACE "HEPEVT_SIZE_REPLACE" "${Replace_String}" template12 "${template11}")
 FILE(WRITE ${PROJECT_SOURCE_DIR}/src/hijing/hipyset1.35.f "${template12}")
 
-FILE(READ ${PROJECT_SOURCE_DIR}/src/dpmjet/3.0-6/pythia6115dpm3v1.f-HEPMCTEMPLATE template13)
+FILE(READ ${PROJECT_SOURCE_DIR}/src/dpmjet/3.2017-1/pythia-6427_cors.f-HEPMCTEMPLATE template13)
 STRING( REGEX REPLACE "HEPEVT_SIZE_REPLACE" "${Replace_String}" template14 "${template13}")
-FILE(WRITE ${PROJECT_SOURCE_DIR}/src/dpmjet/3.0-6/pythia6115dpm3v1.f "${template14}")
+FILE(WRITE ${PROJECT_SOURCE_DIR}/src/dpmjet/3.2017-1/pythia-6427_cors.f "${template14}")
+
+FILE(READ ${PROJECT_SOURCE_DIR}/src/dpmjet/3.2017-1/phojet.f-HEPMCTEMPLATE template15)
+STRING( REGEX REPLACE "HEPEVT_SIZE_REPLACE" "${Replace_String}" template16 "${template15}")
+FILE(WRITE ${PROJECT_SOURCE_DIR}/src/dpmjet/3.2017-1/phojet.f "${template16}")
+
+FILE(READ ${PROJECT_SOURCE_DIR}/src/dpmjet/3.2017-1/dpmjet.f-HEPMCTEMPLATE template17)
+STRING( REGEX REPLACE "HEPEVT_SIZE_REPLACE" "${Replace_String}" template18 "${template17}")
+FILE(WRITE ${PROJECT_SOURCE_DIR}/src/dpmjet/3.2017-1/dpmjet.f "${template18}")
 
 
 
@@ -201,9 +221,10 @@ set_property(SOURCE src/models.F PROPERTY COMPILE_FLAGS "${HELPER} -D __PHOJET__
 ENDIF (__PHOJET__)
 
 IF (__DPMJET__)
-LIST(APPEND TABS dpmjet.dat)
-LIST(APPEND TABS phojet_fitpar.dat)
-ADD_SUBDIRECTORY ("${PROJECT_SOURCE_DIR}/src/dpmjet/3.0-6")
+LIST(APPEND TABS dpmjpar.dat)
+LIST(APPEND TABS dpmCT14LL.pds)
+LIST(APPEND TABS conextar.glb)
+ADD_SUBDIRECTORY ("${PROJECT_SOURCE_DIR}/src/dpmjet/3.2017-1")
 SET(STATIC_LIBS ${STATIC_LIBS} Dpmjet)
 get_property(HELPER SOURCE src/models.F PROPERTY COMPILE_FLAGS)
 set_property(SOURCE src/models.F PROPERTY COMPILE_FLAGS "${HELPER} -D __DPMJET__")
@@ -300,4 +321,3 @@ ADD_TEST (crmcRuns bin/crmc -o hepmc -f ctest.hepmc -T 1)
 #ADD_TEST (crmcCheckFile md5sum "ctest.hepmc")
 #SET_TESTS_PROPERTIES (crmcCheckFile PROPERTIES PASS_REGULAR_EXPRESSION ".*777cb7e60b7c8104393a4fb22b137538  ctest.hepmc")
 ADD_TEST (crmcRemoveFile rm "ctest.hepmc")
-
