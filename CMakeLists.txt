@@ -1,4 +1,4 @@
-CMAKE_MINIMUM_REQUIRED (VERSION 2.6)
+CMAKE_MINIMUM_REQUIRED (VERSION 3.16)
 PROJECT (crmc)
 
 ######################################ONLY EDIT THIS######################################
@@ -97,7 +97,7 @@ else (Root_FOUND)
 endif (Root_FOUND)
 
 # SET(Boost_DEBUG TRUE)
-FIND_PACKAGE (Boost 1.35 REQUIRED COMPONENTS filesystem iostreams system program_options)
+FIND_PACKAGE (Boost 1.35 REQUIRED COMPONENTS filesystem iostreams program_options)
 
 FIND_PACKAGE (HepMC REQUIRED COMPONENTS HepMC HepMCfio)
 INCLUDE_DIRECTORIES ("${HepMC_INCLUDE_DIRS}")
